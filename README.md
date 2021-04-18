@@ -10,7 +10,9 @@ According to notes from the developers, each Root can have only 1 Intermediate.
 
 CORRECT USE (per developer)
 #########################################
+
 Root (REALM01) -> Intermediate01 (issuer) -> Signed certificate 01
+
 #########################################
 
 For multiple Intermediates for the same ROOT,
