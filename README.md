@@ -10,20 +10,10 @@ According to notes from the developers, each Root can have only 1 Intermediate.
 
 CORRECT USE (per developer)
 #########################################
-Root (REALM01
-  Intermediate01 (issuer)
-    Signed certificate 01
+Root (REALM01) -> Intermediate01 (issuer) -> Signed certificate 01
 #########################################
 
-INCORRECT USE (per developer)
-#########################################
-               Root
-  Intermediate01  Intermediate02
-      Cert01          Cert02
-#########################################
+For multiple Intermediates for the same ROOT,
+Copy Root Certificate to new realm, rename it to your naming scheme for the realm, and create intermediate and scep for that realm using the script.
 
-If you want to have multiple Intermediate (Issuer) certificates, you need to create multiple Realms.
-
-Realm01              Realm02
-  Intermediate01       Intermediate02
-    Cert01               Cert02
+This is how you have multiple, seperate Intermediate (Issuing) certificates.
