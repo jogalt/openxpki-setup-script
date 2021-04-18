@@ -1,3 +1,5 @@
+View this file RAW for better explanation.
+
 # openxpki-setup-script
 Edited the provided sampleconfig to allow for complete first-run additional configurations.
 
@@ -25,7 +27,3 @@ If you want to have multiple Intermediate (Issuer) certificates, you need to cre
 Realm01              Realm02
   Intermediate01       Intermediate02
     Cert01               Cert02
-    
-    
-    
-    
