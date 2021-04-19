@@ -43,6 +43,7 @@ FQDN=`hostname -f`
 # Capitalize hostname for some magic we're going to do
 UFQDN="${FQDN^^}"
 
+check_installed () {
 #
 # basic openxpki settings
 #
@@ -56,7 +57,7 @@ else
    echo "Please install OpenXPKI or set BASE to the new PATH!" >&2
    exit 1
 fi
-
+}
 #
 # Notes to user who's executing script
 #
@@ -750,7 +751,6 @@ echo "GnuPG installed."
 echo "Done"
 echo "Retrieving OpenXPKI package key and verifying."
 wget https://packages.openxpki.org/v3/debian/Release.key -O - | apt-key add -
-gpg --print-md sha256 Release.key
 #
 echo "Adding OpenXPKI to sources."
 echo "deb http://packages.openxpki.org/v3/debian/ buster release" > /etc/apt/sources.list.d/openxpki.list
@@ -827,195 +827,36 @@ ROOT_PW="${input_rootpw_2}"
     fi
 done
 
-sudo mysql -e "SET PASSWORD FOR root@localhost = PASSWORD('"${ROOT_PW}"');FLUSH PRIVILEGES;"
-sudo mysql -e "DELETE FROM mysql.user WHERE User='';"
-sudo mysql -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
-sudo mysql -e "DROP DATABASE test;DELETE FROM mysql.db WHERE Db='test' OR Db='test_%';"
-echo -d "Initializing Database...\n"
-sudo mysql -e "CREATE DATABASE "${input_db_name}" CHARSET utf8;"
-sudo mysql -e "CREATE USER '"${input_db_user}"'@'localhost' IDENTIFIED BY '"${input_db_pass}"';"
-sudo mysql -e "GRANT ALL ON openxpki.* TO '"${input_db_name}"'@'localhost';"
-sudo mysql -e "flush privileges;"
+echo "Beginning MariaDB Secure installation..."
+sudo mysql -u root -p"${ROOT_PW}" -e "SET PASSWORD FOR root@localhost = PASSWORD('"${ROOT_PW}"');FLUSH PRIVILEGES;"
+echo "Removing Anonymous user."
+sudo mysql -u root -p"${ROOT_PW}" -e "DELETE FROM mysql.user WHERE User='';"
+sudo mysql -u root -p"${ROOT_PW}" -e "DROP USER IF EXISTS ''@'localhost'"
+sudo mysql -u root -p"${ROOT_PW}" -e "DROP USER IF EXISTS ''@'$(hostname)'"
+echo "Dropped anonymous user."
+sudo mysql -u root -p"${ROOT_PW}" -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
+echo "Disable remote Root Authentication."
+sudo mysql -u root -p"${ROOT_PW}" -e "DROP DATABASE IF EXISTS test"
+echo "Dropping test DB"
+sudo mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
+echo -e "Initializing Database...\n"
+sudo mysql -u root -p"${ROOT_PW}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;"
+echo "Database: ""${input_db_name}"  "created."
+sudo mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'localhost' IDENTIFIED BY '"${input_db_pass}"';"
+echo "User: ""${input_db_user}"  "created."
+sudo mysql -u root -p"${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'localhost';"
+echo "Granting permissions on ""${input_db_name}" "to: ""${input_db_user}"
+sudo mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
 DATABASE_DIR="/etc/openxpki/config.d/system/database.yaml"
-sed "s/name: openxpki/name: "${input_db_name}"/" ${DATABASE_DIR}
-sed "s/user: openxpki/user: "${input_db_user}"/" ${DATABASE_DIR}
-sed "s@passwd: openxpki@passwd: "${input_db_pass}"@" ${DATABASE_DIR}
+sed -i "s/name: openxpki/name: "${input_db_name}"/" ${DATABASE_DIR}
+sed -i "s/user: openxpki/user: "${input_db_user}"/" ${DATABASE_DIR}
+sed -i "s@passwd: openxpki@passwd: "${input_db_pass}"@" ${DATABASE_DIR}
 fi
+echo "Copying database template to Server."
+zcat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql.gz | mysql -u root -p"${ROOT_PW}" --database "${input_db_name}"
 }
 
-
-# [ "$Debug" = 'true' ] || exec 2>/dev/null
-
-echo -e "\nFollow the prompts for creating certificates ... "
-## Add case to avoid recreating each cert?
-## Turn certificate creations into functions to call from within case statement
-## if Case is called, perform generations specific to that case and flip a variable from 0->1 for the openxpki commands
-# self signed root
-import_xpki_Scep="0"
-import_xpki_Root="0"
-import_xpki_Inter="0"
-import_xpki_DV="0"
-import_xpki_Web="0"
-PS3="Select the operation: "
-select opt in Install_OpenXPKI Create_Realm Generate_new_Root_CA Generate_new_Intermediate_CA Generate_new_Datavault_Certificate Generate_new_Scep_Certificate Generate_new_Web_Certificate Quit; do
-case $opt in
-Install_OpenXPKI)
- function_OpenXinstaller
- break
- ;;
-Create_Realm)							## First_run
- import_xpki_Root="1"
- import_xpki_Inter="1"
- import_xpki_DV="1"
- import_xpki_Web="1"
- import_xpki_Scep="1"
- question_realm
- question_ou
- question_rootVer
- question_interVer
- question_scepVer
- question_webVer
- question_country
- question_state
- question_locality
- confirm_input
- populate_files
- define_certificates  #123
- define_openssl
- confirm_run
- gen_RootCA
- gen_InterCA
- gen_ScepCert
- gen_DatavaultCert
- gen_WebCert
- echo "Certificates created, Continuing"
-## openx command
- break
- ;;
-Generate_new_Root_CA)						## Generate_new_Root_CA
- import_xpki_Root="1"
- import_xpki_Inter="0"
- import_xpki_DV="0"
- import_xpki_Web="0"
- import_xpki_Scep="0"
- question_realm
- question_ou
- question_rootVer
- question_country
- question_state
- question_locality
- confirm_input
- populate_files
- define_certificates  #123
- define_openssl
- confirm_run
- gen_RootCA
-##openx command
- break
- ;;
-Generate_new_Intermediate_CA)					## Generate_new_Intermediate_CA
- import_xpki_Root="0"
- import_xpki_Inter="1"
- import_xpki_DV="0"
- import_xpki_Web="0"
- import_xpki_Scep="0"
- question_realm
- question_ou
- question_interVer
- question_country
- question_state
- question_locality
- confirm_input
- populate_files
- define_certificates  #123
- define_openssl
- confirm_run
- gen_InterCA
-##openx command
- break
- ;;
-Generate_new_Datavault_Certificate)				## Generate_new_Datavault_Certificate
- echo "WARNING!!! THIS OPTION IS POTENTIALLY DESTRUCTIVE!"
- echo "IF YOU DON'T FULLY UNDERSTAND THE DECISION YOU'RE MAKING"
- echo "YOU COULD LOSE ACCESS TO YOUR PKI INFRASTRUCTURE!!!"
- echo "OpenXPKI will NOT be held accountable for your decisions!"
- echo "Are you sure you wish to proceed with this risky option???"
- echo "Type or paste the following string at the prompt."
- echo "      I accept the consequences of my actions"
- read input_warning
- string_acceptLiability="I accept the consequences of my actions"
- if [ "${input_warning}" != "${string_acceptLiability}" ]; then
- exit 1
- fi
- import_xpki_Root="0"
- import_xpki_Inter="0"
- import_xpki_DV="1"
- import_xpki_Web="0"
- import_xpki_Scep="0"
- question_realm
- confirm_input
- populate_files
- define_certificates  #123
- define_openssl
- confirm_run
- gen_DatavaultCert
-## openx command
- break
- ;;
-Generate_new_Scep_Certificate)					## Generate_new_Scep_Certificate
- import_xpki_Root="0"
- import_xpki_Inter="0"
- import_xpki_DV="0"
- import_xpki_Web="0"
- import_xpki_Scep="1"
- question_realm
- question_ou
- question_scepVer
- question_country
- question_state
- question_locality
- confirm_input
- populate_files
- define_certificates  #123
- define_openssl
- confirm_run
- gen_ScepCert
- ## openx command
- break
- ;;
-Generate_new_Web_Certificate)					## Generate_new_Web_Certificate
- import_xpki_Root="0"
- import_xpki_Inter="0"
- import_xpki_DV="0"
- import_xpki_Web="1"
- import_xpki_Scep="0"
- question_realm
- question_ou
- question_webVer
- question_country
- question_state
- question_locality
- confirm_input
- populate_files
- define_certificates  #123
- define_openssl
- confirm_run
- gen_WebCert
- break
- ;;
-#List_Users)
-##Add_Users)
-##Change_Password)
-Quit)
- exit 1
- ;;
-*)
-  echo "Invalid Option: $REPLY"
-  ;;
-esac
-done
-
-#654
+transfer_keys_files () {
 keys_dir="/etc/openxpki/local/keys/${REALM}/"
 vault_dir="/etc/openxpki/local/keys/"
 # Copy KEY file to PEM file because the designer chose PEM as the key extension...
@@ -1140,14 +981,14 @@ else
  echo -e "from the Realm.Tpl directory, we're going to prep it for operation. "
  # Have to keep the first sed command at the top because we're counting lines.
  sed -i '53 s|default:|# default:|g' ${REALM_YAML}
- # Need to relabel the token labels with version Numbers here to allow for new
- # numbered certificates to be added either in a big if nest or while loop?
- # future bash will likely build the crypto.yaml from scratch, just like the openssl config.
+ sed -i '43d' ${REALM_YAML}
+ sed -i '42 a\    key: /etc/openxpki/local/keys/[% PKI_REALM %]/[% ALIAS %].pem' ${REALM_YAML}
  sed -i -z 's/import:/# import:/1' ${REALM_YAML}
  sed -i -z 's/secret: default/# secret: default/' ${REALM_YAML}
  sed -i '/ca-signer:/a\    secret: ca-signer' ${REALM_YAML} # Add version number?
  sed -i '/LibSCEP/a\    secret: scep' ${REALM_YAML} # Add version number?
  sed -i '/vault:/a\    secret: vault' ${REALM_YAML} # Add version number?
+ sed -i 's@key: /etc/openxpki/local/keys/[% ALIAS %].pem@key: /etc/openxpki/local/keys/[% PKI_REALM %]/[% ALIAS %].pem@' ${REALM_YAML}
  sed -i '1s/^/#0perational C0nfig\n/' ${REALM_YAML} # Tag the config so we don't fill it with these settings again.
 # put contents of the password file into a variable to pass into the crypto.yaml file
 if [ $import_xpki_Inter == "1" ]; then
@@ -1187,6 +1028,7 @@ echo "
 " >> /etc/openxpki/config.d/realm/${REALM}/crypto.yaml
 fi
 fi
+}
 
 # The order of importing Certificates matters
 # The OpenXPKI instance must be off for this first part or importing is broken
@@ -1260,6 +1102,7 @@ c_rehash /etc/ssl/certs
 update-ca-certificates
 }
 
+import_certificates () {
 if [ $import_xpki_Root == "1" ] || [ $import_xpki_DV == "1" ]; then
 echo "Stopping OpenXPKI if it's running.."
 if pgrep "openxpki" > /dev/null
@@ -1288,6 +1131,188 @@ if [ $import_xpki_Web == "1" ]; then
    apache2_setup
 fi
 
-#echo -e "\nFYI, We can register the same Datavault token with multiple REALMS!!"
-
 echo -e "\nOpenXPKI configuration should be complete and server should be running..."
+}
+
+echo -e "\nFollow the prompts for creating certificates ... "
+import_xpki_Scep="0"
+import_xpki_Root="0"
+import_xpki_Inter="0"
+import_xpki_DV="0"
+import_xpki_Web="0"
+PS3="Select the operation: "
+select opt in Install_OpenXPKI Create_Realm Generate_new_Root_CA Generate_new_Intermediate_CA Generate_new_Datavault_Certificate Generate_new_Scep_Certificate Generate_new_Web_Certificate Quit; do
+case $opt in
+Install_OpenXPKI)
+ function_OpenXinstaller
+ break
+ ;;
+Create_Realm)							## First_run
+ import_xpki_Root="1"
+ import_xpki_Inter="1"
+ import_xpki_DV="1"
+ import_xpki_Web="1"
+ import_xpki_Scep="1"
+ check_installed
+ question_realm
+ question_ou
+ question_rootVer
+ question_interVer
+ question_scepVer
+ question_webVer
+ question_country
+ question_state
+ question_locality
+ confirm_input
+ populate_files
+ define_certificates  #123
+ define_openssl
+ confirm_run
+ gen_RootCA
+ gen_InterCA
+ gen_ScepCert
+ gen_DatavaultCert
+ gen_WebCert
+ echo "Certificates created, Continuing"
+ transfer_keys_files
+ import_certificates
+## openx command
+ break
+ ;;
+Generate_new_Root_CA)						## Generate_new_Root_CA
+ import_xpki_Root="1"
+ import_xpki_Inter="0"
+ import_xpki_DV="0"
+ import_xpki_Web="0"
+ import_xpki_Scep="0"
+ check_installed
+ question_realm
+ question_ou
+ question_rootVer
+ question_country
+ question_state
+ question_locality
+ confirm_input
+ populate_files
+ define_certificates  #123
+ define_openssl
+ confirm_run
+ gen_RootCA
+ transfer_keys_files
+ import_certificates
+##openx command
+ break
+ ;;
+Generate_new_Intermediate_CA)					## Generate_new_Intermediate_CA
+ import_xpki_Root="0"
+ import_xpki_Inter="1"
+ import_xpki_DV="0"
+ import_xpki_Web="0"
+ import_xpki_Scep="0"
+ check_installed
+ question_realm
+ question_ou
+ question_interVer
+ question_country
+ question_state
+ question_locality
+ confirm_input
+ populate_files
+ define_certificates  #123
+ define_openssl
+ confirm_run
+ gen_InterCA
+ transfer_keys_files
+ import_certificates
+##openx command
+ break
+ ;;
+Generate_new_Datavault_Certificate)				## Generate_new_Datavault_Certificate
+ echo "WARNING!!! THIS OPTION IS POTENTIALLY DESTRUCTIVE!"
+ echo "IF YOU DON'T FULLY UNDERSTAND THE DECISION YOU'RE MAKING"
+ echo "YOU COULD LOSE ACCESS TO YOUR PKI INFRASTRUCTURE!!!"
+ echo "OpenXPKI will NOT be held accountable for your decisions!"
+ echo "Are you sure you wish to proceed with this risky option???"
+ echo "Type or paste the following string at the prompt."
+ echo "      I accept the consequences of my actions"
+ read input_warning
+ string_acceptLiability="I accept the consequences of my actions"
+ if [ "${input_warning}" != "${string_acceptLiability}" ]; then
+ exit 1
+ fi
+ import_xpki_Root="0"
+ import_xpki_Inter="0"
+ import_xpki_DV="1"
+ import_xpki_Web="0"
+ import_xpki_Scep="0"
+ check_installed
+ question_realm
+ confirm_input
+ populate_files
+ define_certificates  #123
+ define_openssl
+ confirm_run
+ gen_DatavaultCert
+ transfer_keys_files
+ import_certificates
+## openx command
+ break
+ ;;
+Generate_new_Scep_Certificate)					## Generate_new_Scep_Certificate
+ import_xpki_Root="0"
+ import_xpki_Inter="0"
+ import_xpki_DV="0"
+ import_xpki_Web="0"
+ import_xpki_Scep="1"
+ check_installed
+ question_realm
+ question_ou
+ question_scepVer
+ question_country
+ question_state
+ question_locality
+ confirm_input
+ populate_files
+ define_certificates  #123
+ define_openssl
+ confirm_run
+ gen_ScepCert
+ transfer_keys_files
+ import_certificates
+ ## openx command
+ break
+ ;;
+Generate_new_Web_Certificate)					## Generate_new_Web_Certificate
+ import_xpki_Root="0"
+ import_xpki_Inter="0"
+ import_xpki_DV="0"
+ import_xpki_Web="1"
+ import_xpki_Scep="0"
+ check_installed
+ question_realm
+ question_ou
+ question_webVer
+ question_country
+ question_state
+ question_locality
+ confirm_input
+ populate_files
+ define_certificates  #123
+ define_openssl
+ confirm_run
+ gen_WebCert
+ transfer_keys_files
+ import_certificates
+ break
+ ;;
+#List_Users)
+##Add_Users)
+##Change_Password)
+Quit)
+ exit 1
+ ;;
+*)
+  echo "Invalid Option: $REPLY"
+  ;;
+esac
+done
