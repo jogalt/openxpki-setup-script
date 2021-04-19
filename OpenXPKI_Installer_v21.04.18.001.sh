@@ -575,7 +575,7 @@ then
    make_password "${ROOT_CA_KEY_PASSWORD}"
    openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_ca_extensions -batch -x509 -newkey rsa:$BITS -days ${RDAYS} -passout file:"${ROOT_CA_KEY_PASSWORD}" -keyout "${ROOT_CA_KEY}" -subj "${ROOT_CA_SUBJECT}" -out "${ROOT_CA_CERTIFICATE}"
    echo "Putting the certificate commands into certificateCommands.txt"
-   echo "Putting the certificate commands into certificateCommands.txt" >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt 
+   echo "Putting the certificate commands into certificateCommands.txt" >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
    echo "openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_ca_extensions -batch -x509 -newkey rsa:$BITS -days ${RDAYS} -passout file:"${ROOT_CA_KEY_PASSWORD}" -keyout "${ROOT_CA_KEY}" -subj "${ROOT_CA_SUBJECT}" -out "${ROOT_CA_CERTIFICATE}"" >> certificateCommands.txt
    echo "Done."
 fi;
@@ -662,7 +662,7 @@ then
        	 break
        	 done #4321
       	echo -n "Signing "${REALM}" Scep Certificate with "${choiceInter}" .. "
-	## UFTO 
+	## UFTO
         ISSUING_CA_KEY="${SSL_REALM}/`basename "${SSL_REALM}/${choiceInter}" "."${CERTIFICATE_SUFFIX}`"."${KEY_SUFFIX}"
         ISSUING_CA_KEY_PASSWORD="${SSL_REALM}/`basename "${SSL_REALM}/${choiceInter}" "."${CERTIFICATE_SUFFIX}`"."${PASS_SUFFIX}"
         ISSUING_CA_CERTIFICATE="${SSL_REALM}/${choiceInter}"
@@ -712,8 +712,8 @@ then
          done #4321
         echo -n "Signing "${REALM}" Web Certificate with "${choiceInter}" .. "
    echo "Web request has been generated."
-   ISSUING_CA_KEY="${SSL_REALM}/`basename "${SSL_REALM}/${choiceInter}" "."${CERTIFICATE_SUFFIX}`"."${KEY_SUFFIX}" 
-   ISSUING_CA_KEY_PASSWORD="${SSL_REALM}/`basename "${SSL_REALM}/${choiceInter}" "."${CERTIFICATE_SUFFIX}`"."${PASS_SUFFIX}" 
+   ISSUING_CA_KEY="${SSL_REALM}/`basename "${SSL_REALM}/${choiceInter}" "."${CERTIFICATE_SUFFIX}`"."${KEY_SUFFIX}"
+   ISSUING_CA_KEY_PASSWORD="${SSL_REALM}/`basename "${SSL_REALM}/${choiceInter}" "."${CERTIFICATE_SUFFIX}`"."${PASS_SUFFIX}"
    ISSUING_CA_CERTIFICATE="${SSL_REALM}/${choiceInter}"
    directory="/etc/openxpki/ca/"${REALM}"/"
    if ls /etc/openxpki/ca/${REALM}/*[Rr][Oo][Oo][Tt]*.crt &> /dev/null
@@ -928,7 +928,7 @@ Generate_new_Intermediate_CA)					## Generate_new_Intermediate_CA
  confirm_input
  populate_files
  define_certificates  #123
- define_openssl 
+ define_openssl
  confirm_run
  gen_InterCA
 ##openx command
@@ -956,8 +956,8 @@ Generate_new_Datavault_Certificate)				## Generate_new_Datavault_Certificate
  confirm_input
  populate_files
  define_certificates  #123
- define_openssl 
- confirm_run 
+ define_openssl
+ confirm_run
  gen_DatavaultCert
 ## openx command
  break
@@ -977,10 +977,10 @@ Generate_new_Scep_Certificate)					## Generate_new_Scep_Certificate
  confirm_input
  populate_files
  define_certificates  #123
- define_openssl 
- confirm_run 
+ define_openssl
+ confirm_run
  gen_ScepCert
- ## openx command 
+ ## openx command
  break
  ;;
 Generate_new_Web_Certificate)					## Generate_new_Web_Certificate
@@ -998,8 +998,8 @@ Generate_new_Web_Certificate)					## Generate_new_Web_Certificate
  confirm_input
  populate_files
  define_certificates  #123
- define_openssl 
- confirm_run 
+ define_openssl
+ confirm_run
  gen_WebCert
  break
  ;;
@@ -1069,7 +1069,7 @@ v_KEY_FILE=${vault_dir}${REALM}/vault-1.pem
     fi
 
  echo "Backing up previous vault key, if found."
- timeStamp="$(echo -e `date` | tr -d '[:space:]' | tr -d '[:]' )" 
+ timeStamp="$(echo -e `date` | tr -d '[:space:]' | tr -d '[:]' )"
  mv ${vault_dir}${REALM}/vault-1.pem ${vault_dir}${REALM}/vault-1.pem."${REALM}"."${timeStamp}".bak
   fi
 mv ${DATAVAULT_PEM} ${vault_dir}${REALM}/vault-1.pem
@@ -1140,11 +1140,11 @@ else
  echo -e "from the Realm.Tpl directory, we're going to prep it for operation. "
  # Have to keep the first sed command at the top because we're counting lines.
  sed -i '53 s|default:|# default:|g' ${REALM_YAML}
- # Need to relabel the token labels with version Numbers here to allow for new 
+ # Need to relabel the token labels with version Numbers here to allow for new
  # numbered certificates to be added either in a big if nest or while loop?
  # future bash will likely build the crypto.yaml from scratch, just like the openssl config.
  sed -i -z 's/import:/# import:/1' ${REALM_YAML}
- sed -i -z 's/secret: default/# secret: default/' ${REALM_YAML} 
+ sed -i -z 's/secret: default/# secret: default/' ${REALM_YAML}
  sed -i '/ca-signer:/a\    secret: ca-signer' ${REALM_YAML} # Add version number?
  sed -i '/LibSCEP/a\    secret: scep' ${REALM_YAML} # Add version number?
  sed -i '/vault:/a\    secret: vault' ${REALM_YAML} # Add version number?
