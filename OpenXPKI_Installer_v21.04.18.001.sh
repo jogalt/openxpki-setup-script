@@ -385,8 +385,8 @@ define_openssl () {
 #
 # openssl.conf
 #
-BITS="2048"
-DVBITS="2048" # Customizing Datavault bits for experimenting
+BITS="4192"
+DVBITS="4192" # Customizing Datavault bits for experimenting
 DAYS="730" # 2 years (default value not used for further enhancements)
 RDAYS="7305" # 20 years for root
 IDAYS="5479" # 15 years for issuing
@@ -443,7 +443,7 @@ crlnumber		= ${OPENSSL_DIR}/crlnumber
 crl			= ${OPENSSL_DIR}/crl.pem
 private_key		= ${OPENSSL_DIR}/cakey.pem
 RANDFILE		= ${OPENSSL_DIR}/.rand
-default_md		= sha512
+default_md		= sha3-512
 preserve		= no
 policy			= policy_match
 default_days		= ${DAYS}
@@ -460,12 +460,12 @@ stateOrProvinceName_default     = "${STATE}"
 #x509_extensions               = v3_web_extensions
 
 [ policy_match ]
-countryName             = match
-stateOrProvinceName	= optional
-organizationName        = match
+countryName             = optional
+stateOrProvinceName	    = optional
+organizationName        = optional
 organizationalUnitName	= optional
-commonName		= optional
-emailAddress		= optional
+commonName		        = optional
+emailAddress	       	= optional
 
 # x509_extensions               = v3_ca_reqexts # not for root self signed, only for issuing
 # x509_extensions              = v3_datavault_reqexts # not required self signed
