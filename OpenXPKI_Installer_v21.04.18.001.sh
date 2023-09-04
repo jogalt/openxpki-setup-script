@@ -1,25 +1,5 @@
 #!/bin/bash
 
-set -e
-
-#######################################################################
-###								    ###
-###   This block is used for debugging, remove comments to enable   ###
-###								    ###
-#######################################################################
-#								      #
-# exec 5 > debug.log						      #
-# PS4 ='$LINENO: '						      #
-# BASH_XTRACEFD="5"						      #
-#								      #
-#######################################################################
-#######################################################################
-#######################################################################
-
-# Debug='true'
-# MyPerl='true'
-[ "$MyPerl" = ' true' ] && [ -d /opt/myperl/bin ] && export PATH=/opt/myperl/bin:$PATH
-
 #
 # Check for Sudo Perms
 #
@@ -385,8 +365,8 @@ define_openssl () {
 #
 # openssl.conf
 #
-BITS="4192"
-DVBITS="4192" # Customizing Datavault bits for experimenting
+BITS="8192"
+DVBITS="16384" # Customizing Datavault bits for experimenting
 DAYS="730" # 2 years (default value not used for further enhancements)
 RDAYS="7305" # 20 years for root
 IDAYS="5479" # 15 years for issuing
@@ -753,7 +733,7 @@ echo "Retrieving OpenXPKI package key and verifying."
 wget https://packages.openxpki.org/v3/debian/Release.key -O - | apt-key add -
 #
 echo "Adding OpenXPKI to sources."
-echo "deb http://packages.openxpki.org/v3/debian/ buster release" > /etc/apt/sources.list.d/openxpki.list
+echo -e "Types: deb\nURIs: https://packages.openxpki.org/v3/bookworm/\nSuites: bookworm\nComponents: release\nSigned-By: /usr/share/keyrings/openxpki.pgp" > /etc/apt/sources.list.d/openxpki.sources
 apt update
 PS3="Do you want to install MySQL or MariaDB?   "
 select db in MySQL MariaDB Exit; do
@@ -853,7 +833,7 @@ sed -i "s/user: openxpki/user: "${input_db_user}"/" ${DATABASE_DIR}
 sed -i "s@passwd: openxpki@passwd: "${input_db_pass}"@" ${DATABASE_DIR}
 fi
 echo "Copying database template to Server."
-zcat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql.gz | mysql -u root -p"${ROOT_PW}" --database "${input_db_name}"
+cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u root -p"${ROOT_PW}" --database  "${input_db_name}"
 }
 
 transfer_keys_files () {
@@ -1048,7 +1028,6 @@ openxpkiadm_dv () {
 echo -e "\nImporting Datavault Certificate: ${DATAVAULT_CERTIFICATE}"
 echo "openxpkiadm certificate import --file "${DATAVAULT_CERTIFICATE}"" >> openxpkiadmCommands.txt
 openxpkiadm certificate import --file "${DATAVAULT_CERTIFICATE}"
-
 echo -e "\nRegistering Datavault Certificate ${DATAVAULT_CERTIFICATE} as datasafe token.."
 echo "openxpkiadm alias --file "${DATAVAULT_CERTIFICATE}" --realm "${REALM}" --token datasafe" >> openxpkiadmCommands.txt
 openxpkiadm alias --file "${DATAVAULT_CERTIFICATE}" --realm "${REALM}" --token datasafe
