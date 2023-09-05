@@ -23,7 +23,7 @@ FQDN=`hostname -f`
 # Capitalize hostname
 UFQDN="${FQDN^^}"
 
-BASE_DIR="/opt/openxpki"
+BASE_DIR="/etc/openxpki"
 OPENXPKI_CONFIG="${BASE_DIR}/config.d/system/server.yaml"
 
 check_installed () {
@@ -43,7 +43,7 @@ fi
 # Notes to user who's executing script
 #
 echo "This script, when run on a new system or when repopulating an empty certificate directory"
-echo "will create a Root certificate, Intermediate (Issuing) Certificate, SCEP certificate"
+echo "will create a Root certificate, Intermediate (Issuing) Certificate, SCEP certificate, RAToken Certificate"
 echo "and a self-signed DataVault certificate which encrypts everything else, like a wrapper."
 echo "If you wish to use your pre-existing or company certificates, they need to be pre-loaded"
 echo "in the certificate directory where this script will search for them. If you want to start from"
@@ -114,6 +114,19 @@ if [ -z "$input_scepVer" ]; then
     scepVer="01"
 else
     scepVer="$input_scepVer"
+fi
+}
+
+question_ratokenVer () {
+# For tracking purposes, ask user what number RATOKEN Certificate is being issued.
+echo "What is the number/version of the RAToken certificate? If this is the first time you're making"
+echo "a RATOKEN certificate, press Enter and it will automatically be '01', else, enter a number."
+read input_ratokenVer
+# Check for empty or not and set.
+if [ -z "$input_ratokenVer" ]; then
+    ratokenVer="01"
+else
+    ratokenVer="$input_ratokenVer"
 fi
 }
 
@@ -213,6 +226,7 @@ echo "Email Address: '${v_EMAIL}'"
 echo "Root Version: '${rootVer}'"
 echo "Issuer Version: '${interVer}'"
 echo "Scep Version: '${scepVer}'"
+echo "RAToken Version: '${ratokenVer}'"
 echo "Web Certificate Verson: '${webVer}'"
 echo "Domain Component: '${DCFQDN}'"
 echo -e "Fully Qualified Domain Name: '${FQDN}'\n"
@@ -292,6 +306,19 @@ SCEP_SUBJECT="/emailAddress=${v_EMAIL}/C=${COUNTRY^^}/ST=${STATE^^}/L=${LOCALITY
   # Show user the expected output.
   if [ $import_xpki_Scep == "1" ]; then
   echo "${SCEP_SUBJECT}"
+  fi
+
+# Registration Authority certificate signed by root CA above
+RATOKEN="${REALM^^}_RATOKEN_RA_${ratokenVer}"
+RATOKEN_REQUEST="${SSL_REALM}/${RATOKEN}.${REQUEST_SUFFIX}"
+RATOKEN_KEY="${SSL_REALM}/${RATOKEN}.${KEY_SUFFIX}"
+RATOKEN_PEM="${SSL_REALM}/${RATOKEN}.${PEM_SUFFIX}"
+RATOKEN_KEY_PASSWORD="${SSL_REALM}/${RATOKEN}.${PASS_SUFFIX}"
+RATOKEN_CERTIFICATE="${SSL_REALM}/${RATOKEN}.${CERTIFICATE_SUFFIX}"
+RATOKEN_SUBJECT="/emailAddress=${v_EMAIL}/C=${COUNTRY^^}/ST=${STATE^^}/L=${LOCALITY^^}/O=${REALM^^}/OU=${OrgU^^}/${DCFQDN}/CN=${FQDN}:${REALM,,}-RATOKEN-RA-${ratokenVer}"
+  # Show user the expected output.
+  if [ $import_xpki_Ratoken == "1" ]; then
+  echo "${RATOKEN_SUBJECT}"
   fi
 
 # Apache WEB certificate signed by root CA above
@@ -377,8 +404,12 @@ define_openssl () {
 #
 # openssl.conf
 #
-BITS="8192"
-DVBITS="16384" # Customizing Datavault bits for experimenting
+##Dev
+BITS="2048"
+DVBITS="2048"
+##Prod
+#BITS="8192"
+#DVBITS="16384" # Customizing Datavault bits for experimenting
 DAYS="397" # 397 days, Setting to 397 since apple said they wouldn't support over 398 days
 RDAYS="7305" # 20 years for root
 IDAYS="5479" # 15 years for issuing
@@ -415,7 +446,7 @@ echo $(date +%Y%m%d%H%M)"0001" >> "${OPENSSL_DIR}/serial"
 
 echo "
 HOME			= .
-RANDFILE		= \$ENV::HOME/.rnd
+RANDFILE		= /var/openxpki/rand
 
 [ ca ]
 default_ca		= CA_default
@@ -494,10 +525,13 @@ keyUsage                = digitalSignature, keyCertSign, cRLSign
 [ v3_datavault_reqexts ]
 subjectKeyIdentifier    = hash
 keyUsage                = keyEncipherment
-extendedKeyUsage        = emailProtection
+basicConstraints        = CA:FALSE
+authorityKeyIdentifier  = keyid:always,issuer
 
 [ v3_scep_reqexts ]
 subjectKeyIdentifier    = hash
+basicConstraints        = CA:FALSE
+authorityKeyIdentifier  = keyid,issuer
 
 [ v3_web_reqexts ]
 subjectKeyIdentifier    = hash
@@ -521,7 +555,6 @@ authorityInfoAccess	= caIssuers;"${ROOT_CA_CERTIFICATE_URI}"
 [ v3_datavault_extensions ]
 subjectKeyIdentifier    = hash
 keyUsage                = keyEncipherment
-extendedKeyUsage        = emailProtection
 basicConstraints        = CA:FALSE
 authorityKeyIdentifier  = keyid:always,issuer
 
@@ -630,6 +663,41 @@ else
 	 echo "done."
       fi
    fi
+fi;
+}
+
+gen_RatokenCert() {
+# ratoken certificate
+if [ ! -e "${RATOKEN_KEY}" ]
+then
+   echo "Did not find existing "${REALM}" RATOKEN "${scepVer}" certificate file."
+   echo -n "Creating a "${REALM}" RATOKEN "${ratokenVer}" request .. "
+   test -f "${RATOKEN_REQUEST}" && mv "${RATOKEN_REQUEST}" "${RATOKEN_REQUEST}${BACKUP_SUFFIX}"
+   make_password "${RATOKEN_KEY_PASSWORD}"
+   echo -e "\nRATOKEN Request" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
+   echo -e "openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_ratoken_reqexts -batch -newkey rsa:$BITS -passout file:"${RATOKEN_KEY_PASSWORD}" -keyout "${RATOKEN_KEY}" -subj "${RATOKEN_SUBJECT}" -out "${RATOKEN_REQUEST}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
+   openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_ratoken_reqexts -batch -newkey rsa:$BITS -passout file:"${RATOKEN_KEY_PASSWORD}" -keyout "${RATOKEN_KEY}" -subj "${RATOKEN_SUBJECT}" -out "${RATOKEN_REQUEST}"
+   echo "done."
+	directory="${BASE_DIR}/ca/"${REALM}"/"
+	if ls ${BASE_DIR}/ca/${REALM}/*[Ii][Nn][Tt][Ee][Rr]*.crt &> /dev/null
+   	then
+      	# Begin Selection Process
+      	PS3="Select the Intermediate (Issuing) Certificate you wish to sign with: "
+       	 select choiceInter in `ls $directory | grep -i [Ii][Nn][Tt][Ee][Rr][Mm]* | egrep -i 'crt'`
+       	 do
+       	 echo "Selected certificate: $choiceInter"
+       	 break
+       	 done #4321
+      	echo -n "Signing "${REALM}" Ratoken Certificate with "${choiceInter}" .. "
+	## UFTO
+        ISSUING_CA_KEY="${SSL_REALM}/`basename "${SSL_REALM}/${choiceInter}" "."${CERTIFICATE_SUFFIX}`"."${KEY_SUFFIX}"
+        ISSUING_CA_KEY_PASSWORD="${SSL_REALM}/`basename "${SSL_REALM}/${choiceInter}" "."${CERTIFICATE_SUFFIX}`"."${PASS_SUFFIX}"
+        ISSUING_CA_CERTIFICATE="${SSL_REALM}/${choiceInter}"
+        echo -e "\nSigning Ratoken with Intermediate" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
+	echo "openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_ratoken_extensions -batch -days ${SDAYS} -in "${RATOKEN_REQUEST}" -cert "${ISSUING_CA_CERTIFICATE}" -passin file:"${ISSUING_CA_KEY_PASSWORD}" -keyfile "${ISSUING_CA_KEY}" -out "${RATOKEN_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
+	openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_ratoken_extensions -batch -days ${SDAYS} -in "${RATOKEN_REQUEST}" -cert "${ISSUING_CA_CERTIFICATE}" -passin file:"${ISSUING_CA_KEY_PASSWORD}" -keyfile "${ISSUING_CA_KEY}" -out "${RATOKEN_CERTIFICATE}"
+	echo "done."
+	fi
 fi;
 }
 
@@ -759,7 +827,7 @@ select db in MySQL MariaDB Exit; do
        break
        ;;
       MariaDB)
-       apt install mariadb-server libdbd-mariadb-perl
+       apt install mariadb-server libdbd-mariadb-perl libdbd-mysql-perl
        echo "Selected MariaDB as your DB Server."
        break
        ;;
@@ -777,7 +845,7 @@ a2enmod fcgid
 
 ##Install OpenXPKI
 echo "Beginning OpenXPKI installation."
-apt install libopenxpki-perl openxpki-cgi-session-driver openxpki-i18n
+apt install libopenxpki-perl openxpki-cgi-session-driver openxpki-i18n 
 echo "Showing installed OpenXPKI version."
 openxpkiadm version
 sleep 3
@@ -873,7 +941,7 @@ cp ${DATAVAULT_KEY} ${SSL_REALM}/${DATAVAULT}.${PEM_SUFFIX}
 fi
 # Move .PEMs to the keys directory...
 # NOT moving ROOT PEM. # mv ${ROOT_PEM} ${keys_dir}
-if [ $import_xpki_Inter == "1" ] || [ $import_xpki_Scep == "1" ] || [ $import_xpki_Web == "1" ] || [ $import_xpki_DV == "1" ]; then
+if [ $import_xpki_Inter == "1" ] || [ $import_xpki_Scep == "1" ] || [ $import_xpki_Ratoken == "1" ] || [ $import_xpki_Web == "1" ] || [ $import_xpki_DV == "1" ]; then
 chmod 440 ${SSL_REALM}/*.${PEM_SUFFIX}
 chown root:root ${SSL_REALM}/*.${REQUEST_SUFFIX} ${SSL_REALM}/*.${PEM_SUFFIX} ${SSL_REALM}/*.${PASS_SUFFIX}
 chown root:${group} ${SSL_REALM}/*.${CERTIFICATE_SUFFIX} ${SSL_REALM}/*.${PEM_SUFFIX}
@@ -885,6 +953,10 @@ fi
 if [ $import_xpki_Scep == "1" ]; then
 echo "Moving SCEP"
 mv ${SCEP_PEM} ${keys_dir}
+fi
+if [ $import_xpki_Ratoken == "1" ]; then
+echo "Moving RATOKEN"
+mv ${RATOKEN_PEM} ${keys_dir}
 fi
 if [ $import_xpki_Web == "1" ]; then
 echo "Moving Web"
@@ -924,6 +996,61 @@ echo "Done modifying folder and file permissions."
 #echo "REALM_YAML="${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml"" #debug
 REALM_YAML="${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml"
 
+# Copy our crypto template to the realm's crypto.yaml file
+echo "
+type:
+  certsign: ca-signer
+  datasafe: vault
+  cmcra: ratoken
+  scep: scep
+
+# The actual token setup
+token:
+  default:
+    backend: OpenXPKI::Crypto::Backend::OpenSSL
+    key: /etc/openxpki/local/keys/[% PKI_REALM %]/[% ALIAS %].pem
+
+    # possible values are OpenSSL, nCipher, LunaCA
+    engine: OpenSSL
+    engine_section: ''
+    engine_usage: ''
+    key_store: OPENXPKI
+
+    # OpenSSL binary location
+    shell: /usr/bin/openssl
+
+    # OpenSSL binary call gets wrapped with this command
+    wrapper: ''
+
+    # random file to use for OpenSSL
+    randfile: /var/openxpki/rand
+
+  ca-signer:
+    inherit: default
+    key_store: DATAPOOL
+    key: "[% KEY_IDENTIFIER %]"
+    secret: ca-signer
+
+  vault:
+    inherit: default
+    key: /etc/openxpki/local/keys/[% ALIAS %].pem
+    secret: vault
+
+  ratoken:
+    inherit: default
+    key_store: DATAPOOL
+    key: "[% KEY_IDENTIFIER %]"
+    secret: ratoken
+
+  scep:
+    inherit: default
+    key_store: DATAPOOL
+    key: "[% KEY_IDENTIFIER %]"
+    secret: scep
+
+# Define the secret groups
+secret:" >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
+
 # Has the crypto.yaml file been edited before? Checking for our keyword to decide.
 echo "Editing config file at: ${REALM_YAML}"
 #echo "TAG="0perational C0nfig"" #debug
@@ -941,6 +1068,9 @@ v_DATAVAULT_KEY_PASSWORD="$(cat ${DATAVAULT_KEY_PASSWORD})"
 fi
 if [ $import_xpki_Scep == "1" ]; then
 v_SCEP_KEY_PASSWORD="$(cat ${SCEP_KEY_PASSWORD})"
+fi
+if [ $import_xpki_Ratoken == "1" ]; then
+v_RATOKEN_KEY_PASSWORD="$(cat ${RATOKEN_KEY_PASSWORD})"
 fi
 if [ $import_xpki_DV == "1" ]; then
 echo "
@@ -969,19 +1099,28 @@ echo "
         value: ${v_SCEP_KEY_PASSWORD}
 " >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
 fi
+if [ $import_xpki_Ratoken == "1" ]; then
+echo "
+    ratoken:
+        label: ${RATOKEN}
+        export: 0
+        method: literal
+        value: ${v_RATOKEN_KEY_PASSWORD}
+" >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
+fi
 else
- echo -e "\nThis config file has not been edited by this script. Assuming it's a new copy from the "
- echo -e "from the Realm.Tpl directory, we're going to prep it for operation. "
- # Have to keep the first sed command at the top because we're counting lines.
- sed -i '53 s|default:|# default:|g' ${REALM_YAML}
- sed -i '43d' ${REALM_YAML}
- sed -i '42 a\    key: ${BASE_DIR}/local/keys/[% PKI_REALM %]/[% ALIAS %].pem' ${REALM_YAML}
- sed -i -z 's/import:/# import:/1' ${REALM_YAML}
- sed -i -z 's/secret: default/# secret: default/' ${REALM_YAML}
- sed -i '/ca-signer:/a\    secret: ca-signer' ${REALM_YAML} # Add version number?
- sed -i '/LibSCEP/a\    secret: scep' ${REALM_YAML} # Add version number?
- sed -i '/vault:/a\    secret: vault' ${REALM_YAML} # Add version number?
- sed -i 's@key: ${BASE_DIR}/local/keys/[% ALIAS %].pem@key: ${BASE_DIR}/local/keys/[% PKI_REALM %]/[% ALIAS %].pem@' ${REALM_YAML}
+ # echo -e "\nThis config file has not been edited by this script. Assuming it's a new copy from the "
+ # echo -e "from the Realm.Tpl directory, we're going to prep it for operation. "
+ # # Have to keep the first sed command at the top because we're counting lines.
+ # sed -i '53 s|default:|# default:|g' ${REALM_YAML}
+ # sed -i '43d' ${REALM_YAML}
+ # sed -i '42 a\    key: ${BASE_DIR}/local/keys/[% PKI_REALM %]/[% ALIAS %].pem' ${REALM_YAML}
+ # sed -i -z 's/import:/# import:/1' ${REALM_YAML}
+ # sed -i -z 's/secret: default/# secret: default/' ${REALM_YAML}
+ # sed -i '/ca-signer:/a\    secret: ca-signer' ${REALM_YAML} # Add version number?
+ # sed -i '/LibSCEP/a\    secret: scep' ${REALM_YAML} # Add version number?
+ # sed -i '/vault:/a\    secret: vault' ${REALM_YAML} # Add version number?
+ # sed -i 's@key: ${BASE_DIR}/local/keys/[% ALIAS %].pem@key: ${BASE_DIR}/local/keys/[% PKI_REALM %]/[% ALIAS %].pem@' ${REALM_YAML}
  sed -i '1s/^/#0perational C0nfig\n/' ${REALM_YAML} # Tag the config so we don't fill it with these settings again.
 # put contents of the password file into a variable to pass into the crypto.yaml file
 if [ $import_xpki_Inter == "1" ]; then
@@ -993,8 +1132,11 @@ fi
 if [ $import_xpki_Scep == "1" ]; then
 v_SCEP_KEY_PASSWORD="$(cat ${SCEP_KEY_PASSWORD})"
 fi
+if [ $import_xpki_Ratoken == "1" ]; then
+v_RATOKEN_KEY_PASSWORD="$(cat ${RATOKEN_KEY_PASSWORD})"
+fi
 if [ $import_xpki_DV == "1" ]; then
-echo "
+echo "    
     vault:
         label: ${DATAVAULT}
         export: 0
@@ -1010,6 +1152,15 @@ echo "
         export: 0
         method: literal
         value: ${v_ISSUING_CA_KEY_PASSWORD}
+" >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
+fi
+if [ $import_xpki_Ratoken == "1" ]; then
+echo "
+    ratoken:
+        label: ${RATOKEN}
+        export: 0
+        method: literal
+        value: ${v_RATOKEN_KEY_PASSWORD}
 " >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
 fi
 if [ $import_xpki_Scep == "1" ]; then
@@ -1058,6 +1209,13 @@ openxpkiadm alias --file "${ISSUING_CA_CERTIFICATE}" --realm "${REALM}" --token 
 openxpkiadm_scep () {
 echo "openxpkiadm alias --file "${SCEP_CERTIFICATE}" --realm "${REALM}" --token scep  --key "${SCEP_KEY}"" >> openxpkiadmCommands.txt
 openxpkiadm alias --file "${SCEP_CERTIFICATE}" --realm "${REALM}" --token scep  --key "${SCEP_KEY}"
+echo -e "Done.\n"
+}
+
+# Keys NEED to be added to keys directory before these commands happen or the import fails
+openxpkiadm_ratoken () {
+echo "openxpkiadm alias --file "${RATOKEN_CERTIFICATE}" --realm "${REALM}" --token ratoken  --key "${RATOKEN_KEY}"" >> openxpkiadmCommands.txt
+openxpkiadm alias --file "${RATOKEN_CERTIFICATE}" --realm "${REALM}" --token ratoken  --key "${RATOKEN_KEY}"
 echo -e "Done.\n"
 }
 
@@ -1119,6 +1277,9 @@ if [ $import_xpki_Inter == "1" ]; then
 fi
 if [ $import_xpki_Scep == "1" ]; then
    openxpkiadm_scep
+fi
+if [ $import_xpki_Ratoken == "1" ]; then
+   openxpkiadm_ratoken
 fi
 if [ $import_xpki_Web == "1" ]; then
    apache2_setup
@@ -1192,13 +1353,14 @@ done
 
 echo -e "\nFollow the prompts for creating certificates ... "
 import_xpki_Scep="0"
+import_xpki_Ratoken="0"
 import_xpki_Root="0"
 import_xpki_Inter="0"
 import_xpki_DV="0"
 import_xpki_Web="0"
 
 PS3="Select the operation: "
-select opt in Install_OpenXPKI Create_Realm Generate_new_Root_CA Generate_new_Intermediate_CA Generate_new_Datavault_Certificate Generate_new_Scep_Certificate Generate_new_Web_Certificate Add_Users Quit; do
+select opt in Install_OpenXPKI Create_Realm Generate_new_Root_CA Generate_new_Intermediate_CA Generate_new_Datavault_Certificate Generate_new_Scep_Certificate Generate_new_Ratoken_Certificate Generate_new_Web_Certificate Add_Users Quit; do
 case $opt in
 Install_OpenXPKI)
  function_OpenXinstaller
@@ -1209,6 +1371,7 @@ Create_Realm)							## First_run
  import_xpki_Inter="1"
  import_xpki_DV="1"
  import_xpki_Web="1"
+ import_xpki_Ratoken="1"
  import_xpki_Scep="1"
  check_installed
  question_realm
@@ -1216,10 +1379,12 @@ Create_Realm)							## First_run
  question_rootVer
  question_interVer
  question_scepVer
+ question_ratokenVer
  question_webVer
  question_country
  question_state
  question_locality
+ question_email
  confirm_input
  populate_files
  define_certificates  #123
@@ -1228,6 +1393,7 @@ Create_Realm)							## First_run
  gen_RootCA
  gen_InterCA
  gen_ScepCert
+ gen_RatokenCert
  gen_DatavaultCert
  gen_WebCert
  echo "Certificates created, Continuing"
@@ -1242,6 +1408,7 @@ Generate_new_Root_CA)						## Generate_new_Root_CA
  import_xpki_DV="0"
  import_xpki_Web="0"
  import_xpki_Scep="0"
+ import_xpki_Ratoken="0"
  check_installed
  question_realm
  question_ou
@@ -1266,6 +1433,7 @@ Generate_new_Intermediate_CA)					## Generate_new_Intermediate_CA
  import_xpki_DV="0"
  import_xpki_Web="0"
  import_xpki_Scep="0"
+ import_xpki_Ratoken="0"
  check_installed
  question_realm
  question_ou
@@ -1302,6 +1470,7 @@ Generate_new_Datavault_Certificate)				## Generate_new_Datavault_Certificate
  import_xpki_DV="1"
  import_xpki_Web="0"
  import_xpki_Scep="0"
+ import_xpki_Ratoken="0"
  check_installed
  question_realm
  confirm_input
@@ -1315,11 +1484,12 @@ Generate_new_Datavault_Certificate)				## Generate_new_Datavault_Certificate
 ## openx command
  break
  ;;
-Generate_new_Scep_Certificate)					## Generate_new_Scep_Certificate
+ Generate_new_Scep_Certificate)					## Generate_new_Scep_Certificate
  import_xpki_Root="0"
  import_xpki_Inter="0"
  import_xpki_DV="0"
  import_xpki_Web="0"
+ import_xpki_Ratoken="0"
  import_xpki_Scep="1"
  check_installed
  question_realm
@@ -1339,12 +1509,38 @@ Generate_new_Scep_Certificate)					## Generate_new_Scep_Certificate
  ## openx command
  break
  ;;
+Generate_new_Ratoken_Certificate)					## Generate_new_Ratoken_Certificate
+ import_xpki_Root="0"
+ import_xpki_Inter="0"
+ import_xpki_DV="0"
+ import_xpki_Web="0"
+ import_xpki_Scep="0"
+ import_xpki_Ratoken="1"
+ check_installed
+ question_realm
+ question_ou
+ question_ratokenVer
+ question_country
+ question_state
+ question_locality
+ confirm_input
+ populate_files
+ define_certificates  #123
+ define_openssl
+ confirm_run
+ gen_RatokenCert
+ transfer_keys_files
+ import_certificates
+ ## openx command
+ break
+ ;;
 Generate_new_Web_Certificate)					## Generate_new_Web_Certificate
  import_xpki_Root="0"
  import_xpki_Inter="0"
  import_xpki_DV="0"
  import_xpki_Web="1"
  import_xpki_Scep="0"
+ import_xpki_Ratoken="0"
  check_installed
  question_realm
  question_ou
