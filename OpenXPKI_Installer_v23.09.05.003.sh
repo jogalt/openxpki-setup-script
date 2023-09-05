@@ -1119,14 +1119,74 @@ fi
 echo -e "\nOpenXPKI configuration should be complete and server should be running..."
 }
 
+
+
+create_new_user () {
+echo "Enter new user name."
+echo ""
+read v_new_user
+PS3="Select user role."
+select role in Certificate_Authority Registration_Authority User Quit; do
+case $role in
+Certificate_Authority)
+ v_new_user_role="CA"
+ break
+ ;;
+Registration_Authority)
+ v_new_user_role="RA"
+ break
+ ;;
+User)
+ v_new_user_role="User"
+ break
+ ;;
+ Quit)
+ exit 1
+ ;;
+*)
+  echo "Invalid Option: $REPLY"
+  ;;
+esac
+echo "Enter user password."
+echo ""
+read v_new_user_pass
+salt="$(openssl rand -base64 3)"
+v_new_user_saltPass=`$(echo -n "$v_new_user_pass$salt" | openssl sha1 -binary)$salt | openssl enc -base64`
+# Add new user details to the userdb or admindb
+if [ $v_new_user_role == "CA" || $v_new_user_role == "RA"]; then
+	userFile=/home/pkiadm/admindb.yaml
+	if [ -z "$userFile" ]; then
+    touch $userFile
+	fi
+	echo >>"
+	$v_new_user:
+		digest: "{SSHA}$v_new_user_saltPass"
+		role: $v_new_user_role Operator
+		"
+fi
+if [ $v_new_user_role == "user" ]; then
+	userFile=/home/pkiadm/userdb.yaml
+	if [ -z "$userFile" ]; then
+    touch $userFile
+	fi
+	echo >>"
+	$v_new_user:
+		digest: "{SSHA}$v_new_user_saltPass"
+		role: $v_new_user_role
+		"
+fi
+done
+}
+
 echo -e "\nFollow the prompts for creating certificates ... "
 import_xpki_Scep="0"
 import_xpki_Root="0"
 import_xpki_Inter="0"
 import_xpki_DV="0"
 import_xpki_Web="0"
+
 PS3="Select the operation: "
-select opt in Install_OpenXPKI Create_Realm Generate_new_Root_CA Generate_new_Intermediate_CA Generate_new_Datavault_Certificate Generate_new_Scep_Certificate Generate_new_Web_Certificate Quit; do
+select opt in Install_OpenXPKI Create_Realm Generate_new_Root_CA Generate_new_Intermediate_CA Generate_new_Datavault_Certificate Generate_new_Scep_Certificate Generate_new_Web_Certificate Add_Users Quit; do
 case $opt in
 Install_OpenXPKI)
  function_OpenXinstaller
@@ -1291,7 +1351,10 @@ Generate_new_Web_Certificate)					## Generate_new_Web_Certificate
  break
  ;;
 #List_Users)
-##Add_Users)
+Add_Users)
+ create_new_user
+ break
+ ;;
 ##Change_Password)
 Quit)
  exit 1
