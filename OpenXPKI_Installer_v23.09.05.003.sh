@@ -23,12 +23,13 @@ FQDN=`hostname -f`
 # Capitalize hostname
 UFQDN="${FQDN^^}"
 
+BASE_DIR="/opt/openxpki"
+OPENXPKI_CONFIG="${BASE_DIR}/config.d/system/server.yaml"
+
 check_installed () {
 #
 # basic openxpki settings
 #
-BASE_DIR='/opt/openxpki';
-OPENXPKI_CONFIG="${BASE_DIR}/config.d/system/server.yaml"
 if [ -f "${OPENXPKI_CONFIG}" ]
 then
    eval `egrep '^user:|^group:' "${OPENXPKI_CONFIG}" | sed -e 's/:  */=/g'`
@@ -772,7 +773,7 @@ sleep 3
 
 echo "Do you want to automate the secure database initialization?"
 echo "We'll ask for your root password, the database name, user and password."
-echo "The details will be placed into the file:  config.d/system/database.yaml"
+echo "The details will be placed into the file:  ${BASE_DIR}/config.d/system/database.yaml"
 echo "    Y  |  y  "
 read input_secureDB
 if [ "${input_secureDB,,}" == "y" ] || [ "${input_secureDB,,}" == "yes" ]; then
@@ -833,9 +834,9 @@ sudo mysql -u root -p"${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}"
 echo "Granting permissions on ""${input_db_name}" "to: ""${input_db_user}"
 sudo mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
 DATABASE_DIR="${BASE_DIR}/config.d/system/database.yaml"
-sed -i "s/name: openxpki/name: "${input_db_name}"/" ${DATABASE_DIR}
-sed -i "s/user: openxpki/user: "${input_db_user}"/" ${DATABASE_DIR}
-sed -i "s@passwd: openxpki@passwd: "${input_db_pass}"@" ${DATABASE_DIR}
+sed -i "s^name:.*^name: ${input_db_name}^g" ${DATABASE_DIR}
+sed -i "s^user:.*^user: ${input_db_user}^g" ${DATABASE_DIR}
+sed -i "s^passwd:.*^passwd: ${input_db_pass}^g" ${DATABASE_DIR}
 fi
 echo "Copying database template to Server."
 cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u root -p"${ROOT_PW}" --database  "${input_db_name}"
