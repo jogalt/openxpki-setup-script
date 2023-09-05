@@ -1119,33 +1119,10 @@ fi
 echo -e "\nOpenXPKI configuration should be complete and server should be running..."
 }
 
-
-
-create_new_user () {
+add_new_user () {
 echo "Enter new user name."
 echo ""
 read v_new_user
-PS3="Select user role."
-select role in Certificate_Authority Registration_Authority User Quit; do
-case $role in
-Certificate_Authority)
- v_new_user_role="CA"
- break
- ;;
-Registration_Authority)
- v_new_user_role="RA"
- break
- ;;
-User)
- v_new_user_role="User"
- break
- ;;
- Quit)
- exit 1
- ;;
-*)
-  echo "Invalid Option: $REPLY"
-  ;;
 echo "Enter user password."
 echo ""
 read v_new_user_pass
@@ -1174,6 +1151,33 @@ if [ $v_new_user_role == "user" ]; then
 		role: $v_new_user_role
 		"
 fi
+}
+
+create_new_user () {
+PS3="Select user role.  "
+select role in Certificate_Authority Registration_Authority User Quit; do
+case $role in
+Certificate_Authority)
+ v_new_user_role="CA"
+ add_new_user
+ break
+ ;;
+Registration_Authority)
+ v_new_user_role="RA"
+ add_new_user
+ break
+ ;;
+User)
+ v_new_user_role="User"
+ add_new_user
+ break
+ ;;
+ Quit)
+ exit 1
+ ;;
+*)
+  echo "Invalid Option: $REPLY"
+  ;;
 esac
 done
 }
