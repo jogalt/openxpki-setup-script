@@ -27,13 +27,13 @@ check_installed () {
 #
 # basic openxpki settings
 #
-BASE='/etc/openxpki';
-OPENXPKI_CONFIG="${BASE}/config.d/system/server.yaml"
+BASE_DIR='/opt/openxpki';
+OPENXPKI_CONFIG="${BASE_DIR}/config.d/system/server.yaml"
 if [ -f "${OPENXPKI_CONFIG}" ]
 then
    eval `egrep '^user:|^group:' "${OPENXPKI_CONFIG}" | sed -e 's/:  */=/g'`
 else
-   echo "ERROR: It seems that OpenXPKI is not installed at the default location (${BASE})!" >&2
+   echo "ERROR: It seems that OpenXPKI is not installed at the default location (${BASE_DIR})!" >&2
    echo "Please install OpenXPKI or set BASE to the new PATH!" >&2
    exit 1
 fi
@@ -47,7 +47,7 @@ echo "and a self-signed DataVault certificate which encrypts everything else, li
 echo "If you wish to use your pre-existing or company certificates, they need to be pre-loaded"
 echo "in the certificate directory where this script will search for them. If you want to start from"
 echo "scratch or if you want to test the output, leave the directory empty."
-echo -e "\nThe directory is/will be    /etc/openxpki/ca/realm/    where realm is the name you will define"
+echo -e "\nThe directory is/will be    ${BASE_DIR}/ca/realm/    where realm is the name you will define"
 echo "in the following questions. "
 
 #
@@ -336,22 +336,22 @@ echo "Checking if Realm Config Directory exists."
 
 # Make a new realm folder
 KEY_PASSWORD="${input_password}"
-SSL_REALM="${BASE}/ca/${REALM}"
-REALM_CONF="/etc/openxpki/config.d/system/realms.yaml"
-if [ ! -d "/etc/openxpki/config.d/realm/${REALM}" ]; then
+SSL_REALM="${BASE_DIR}/ca/${REALM}"
+REALM_CONF="${BASE_DIR}/config.d/system/realms.yaml"
+if [ ! -d "${BASE_DIR}/config.d/realm/${REALM}" ]; then
   echo "Making Configuration Directory"
-  mkdir /etc/openxpki/config.d/realm/${REALM}
+  mkdir ${BASE_DIR}/config.d/realm/${REALM}
 
   # Copy realm.tpl contents to new Realm folder
   echo "Copying Files from the Realm.Tpl directory."
-  cp -R /etc/openxpki/config.d/realm.tpl/* /etc/openxpki/config.d/realm/${REALM}
+  cp -R ${BASE_DIR}/config.d/realm.tpl/* ${BASE_DIR}/config.d/realm/${REALM}
 fi
     # If Realm does not exist, we'll add it to the Realm Yaml.
     # This avoids readding it after everytime the script runs.
     # Add new realm to the Realms config.
 if grep -Fq "$REALM" ${REALM_CONF}; then
   echo "It appears your Realm is alreddy in configured in:"
-  echo "/etc/openxpki/config.d/system/realms.yaml"
+  echo "${BASE_DIR}/config.d/system/realms.yaml"
 else
 echo "
 ${REALM}:
@@ -388,10 +388,10 @@ test -d "${OPENSSL_DIR}" || mkdir -m 700 "${OPENSSL_DIR}" && chown root:root "${
 cd "${OPENSSL_DIR}";
 
 ## Verify output during testing
-#echo -e ${ROOT_CA_CERTIFICATE_URI}"\n" >> /etc/openxpki/ca/${REALM}/URI.txt
-#echo -e ${ROOT_CA_REVOCATION_URI}"\n" >> /etc/openxpki/ca/${REALM}/URI.txt
-#echo -e ${ISSUING_REVOCATION_URI}"\n">> /etc/openxpki/ca/${REALM}/URI.txt
-#echo -e ${ISSUING_CERTIFICATE_URI} >> /etc/openxpki/ca/${REALM}/URI.txt
+#echo -e ${ROOT_CA_CERTIFICATE_URI}"\n" >> ${BASE_DIR}/ca/${REALM}/URI.txt
+#echo -e ${ROOT_CA_REVOCATION_URI}"\n" >> ${BASE_DIR}/ca/${REALM}/URI.txt
+#echo -e ${ISSUING_REVOCATION_URI}"\n">> ${BASE_DIR}/ca/${REALM}/URI.txt
+#echo -e ${ISSUING_CERTIFICATE_URI} >> ${BASE_DIR}/ca/${REALM}/URI.txt
 
 OPENSSL_CONF="${OPENSSL_DIR}/openssl.cnf"
 
@@ -528,19 +528,19 @@ authorityInfoAccess	= caIssuers;"${ISSUING_CERTIFICATE_URI}"
 " > "${OPENSSL_CONF}"
 
 echo "Done."
-echo "Looking for keys directory for the encrypted, private keys: /etc/openxpki/local/keys/"
-if [ ! -d "/etc/openxpki/config.d/realm/${REALM}" ]
+echo "Looking for keys directory for the encrypted, private keys: ${BASE_DIR}/local/keys/"
+if [ ! -d "${BASE_DIR}/config.d/realm/${REALM}" ]
 then
     echo "Making "${REALM}" Configuration Directory"
-    mkdir /etc/openxpki/config.d/realm/${REALM}
+    mkdir ${BASE_DIR}/config.d/realm/${REALM}
     # Copy democa contents to new Realm folder
     echo "Copying Files from the DEMOCA directory."
-    cp -R /etc/openxpki/config.d/realm.tpl/* /etc/openxpki/config.d/realm/${REALM}
+    cp -R ${BASE_DIR}/config.d/realm.tpl/* ${BASE_DIR}/config.d/realm/${REALM}
 fi
-if [ ! -d "/etc/openxpki/local/keys/${REALM}" ]
+if [ ! -d "${BASE_DIR}/local/keys/${REALM}" ]
 then
     echo -e "\nMaking Local Keys REALM directory\n"
-    mkdir -p /etc/openxpki/local/keys/${REALM}/
+    mkdir -p ${BASE_DIR}/local/keys/${REALM}/
 fi
 }
 # Certificate generation functions
@@ -556,7 +556,7 @@ then
    make_password "${ROOT_CA_KEY_PASSWORD}"
    openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_ca_extensions -batch -x509 -newkey rsa:$BITS -days ${RDAYS} -passout file:"${ROOT_CA_KEY_PASSWORD}" -keyout "${ROOT_CA_KEY}" -subj "${ROOT_CA_SUBJECT}" -out "${ROOT_CA_CERTIFICATE}"
    echo "Putting the certificate commands into certificateCommands.txt"
-   echo "Putting the certificate commands into certificateCommands.txt" >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
+   echo "Putting the certificate commands into certificateCommands.txt" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
    echo "openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_ca_extensions -batch -x509 -newkey rsa:$BITS -days ${RDAYS} -passout file:"${ROOT_CA_KEY_PASSWORD}" -keyout "${ROOT_CA_KEY}" -subj "${ROOT_CA_SUBJECT}" -out "${ROOT_CA_CERTIFICATE}"" >> certificateCommands.txt
    echo "Done."
 fi;
@@ -571,12 +571,12 @@ then
    test -f "${ISSUING_CA_REQUEST}" && mv "${ISSUING_CA_REQUEST}" "${ISSUING_CA_REQUEST}${BACKUP_SUFFIX}"
    make_password "${ISSUING_CA_KEY_PASSWORD}"
    openssl req -verbose -config "${OPENSSL_CONF}" -subj "/CN='${ISSUING_CA_CERTIFICATE}'" -reqexts v3_ca_reqexts -batch -newkey rsa:$BITS -passout file:"${ISSUING_CA_KEY_PASSWORD}" -keyout "${ISSUING_CA_KEY}" -subj "${ISSUING_CA_SUBJECT}" -out "${ISSUING_CA_REQUEST}"
-   echo -e "\nIntermediate CSR" >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
-   echo "openssl req -verbose -config "${OPENSSL_CONF}" -subj "/CN=${ISSUING_CA_CERTIFICATE}" -reqexts v3_ca_reqexts -batch -newkey rsa:$BITS -passout file:"${ISSUING_CA_KEY_PASSWORD}" -keyout "${ISSUING_CA_KEY}" -subj "${ISSUING_CA_SUBJECT}" -out "${ISSUING_CA_REQUEST}"" >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
+   echo -e "\nIntermediate CSR" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
+   echo "openssl req -verbose -config "${OPENSSL_CONF}" -subj "/CN=${ISSUING_CA_CERTIFICATE}" -reqexts v3_ca_reqexts -batch -newkey rsa:$BITS -passout file:"${ISSUING_CA_KEY_PASSWORD}" -keyout "${ISSUING_CA_KEY}" -subj "${ISSUING_CA_SUBJECT}" -out "${ISSUING_CA_REQUEST}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
    echo "done."
    echo "Generated Inter CSR"
-   directory="/etc/openxpki/ca/"${REALM}"/"
-   if ls /etc/openxpki/ca/${REALM}/*[Rr][Oo][Oo][Tt]*.crt &> /dev/null
+   directory="${BASE_DIR}/ca/"${REALM}"/"
+   if ls ${BASE_DIR}/ca/${REALM}/*[Rr][Oo][Oo][Tt]*.crt &> /dev/null
    then
       # Begin Selection Process
       PS3="Select the Root Certificate you wish to sign with: "
@@ -588,12 +588,12 @@ then
       echo -n "Signing "${REALM^}" Intermediate Certificate with "${choiceRoot}" .. "
       test -f "${ISSUING_CA_CERTIFICATE}" && \
 	mv "${ISSUING_CA_CERTIFICATE}" "${ISSUING_CA_CERTIFICATE}${BACKUP_SUFFIX}"
-	echo -e "\nSigning Intermediate with Root." >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
+	echo -e "\nSigning Intermediate with Root." >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
 	ROOT_CA_KEY="${SSL_REALM}/`basename "${SSL_REALM}/${choiceRoot}" "."${CERTIFICATE_SUFFIX}`"."${KEY_SUFFIX}"
 	ROOT_CA_KEY_PASSWORD="${SSL_REALM}/`basename "${SSL_REALM}/${choiceRoot}" "."${CERTIFICATE_SUFFIX}`"."${PASS_SUFFIX}"
 	ROOT_CA_CERTIFICATE="${SSL_REALM}/${choiceRoot}"
 	echo "ROOT_CA_CERTIFICATE="${SSL_REALM}/${choiceRoot}""
-	echo "openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_issuing_extensions -batch -days ${IDAYS} -in "${ISSUING_CA_REQUEST}" -cert "${ROOT_CA_CERTIFICATE}" -passin file:"${ROOT_CA_KEY_PASSWORD}" -keyfile "${ROOT_CA_KEY}" -out "${ISSUING_CA_CERTIFICATE}"" >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
+	echo "openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_issuing_extensions -batch -days ${IDAYS} -in "${ISSUING_CA_REQUEST}" -cert "${ROOT_CA_CERTIFICATE}" -passin file:"${ROOT_CA_KEY_PASSWORD}" -keyfile "${ROOT_CA_KEY}" -out "${ISSUING_CA_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
         openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_issuing_extensions -batch -days ${IDAYS} -in "${ISSUING_CA_REQUEST}" -cert "${ROOT_CA_CERTIFICATE}" -passin file:"${ROOT_CA_KEY_PASSWORD}" -keyfile "${ROOT_CA_KEY}" -out "${ISSUING_CA_CERTIFICATE}"
         echo "Done."
    else
@@ -611,8 +611,8 @@ else
          echo "Please sign generated request with your company's Root CA key"
          exit 0
       else
-         echo -n "Signing issuing certificate with own root CA .. " >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
-	 echo -n "openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_issuing_extensions -batch -days ${IDAYS} -in "${ISSUING_CA_REQUEST}" -cert "${ROOT_CA_CERTIFICATE}" -passin file:"${ROOT_CA_KEY_PASSWORD}" -keyfile "${ROOT_CA_KEY}" -out "${ISSUING_CA_CERTIFICATE}"" >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
+         echo -n "Signing issuing certificate with own root CA .. " >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
+	 echo -n "openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_issuing_extensions -batch -days ${IDAYS} -in "${ISSUING_CA_REQUEST}" -cert "${ROOT_CA_CERTIFICATE}" -passin file:"${ROOT_CA_KEY_PASSWORD}" -keyfile "${ROOT_CA_KEY}" -out "${ISSUING_CA_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
          openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_issuing_extensions -batch -days ${IDAYS} -in "${ISSUING_CA_REQUEST}" -cert "${ROOT_CA_CERTIFICATE}" -passin file:"${ROOT_CA_KEY_PASSWORD}" -keyfile "${ROOT_CA_KEY}" -out "${ISSUING_CA_CERTIFICATE}"
 	 echo "done."
       fi
@@ -628,12 +628,12 @@ then
    echo -n "Creating a "${REALM}" SCEP "${scepVer}" request .. "
    test -f "${SCEP_REQUEST}" && mv "${SCEP_REQUEST}" "${SCEP_REQUEST}${BACKUP_SUFFIX}"
    make_password "${SCEP_KEY_PASSWORD}"
-   echo -e "\nSCEP Request" >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
-   echo -e "openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_scep_reqexts -batch -newkey rsa:$BITS -passout file:"${SCEP_KEY_PASSWORD}" -keyout "${SCEP_KEY}" -subj "${SCEP_SUBJECT}" -out "${SCEP_REQUEST}"" >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
+   echo -e "\nSCEP Request" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
+   echo -e "openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_scep_reqexts -batch -newkey rsa:$BITS -passout file:"${SCEP_KEY_PASSWORD}" -keyout "${SCEP_KEY}" -subj "${SCEP_SUBJECT}" -out "${SCEP_REQUEST}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
    openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_scep_reqexts -batch -newkey rsa:$BITS -passout file:"${SCEP_KEY_PASSWORD}" -keyout "${SCEP_KEY}" -subj "${SCEP_SUBJECT}" -out "${SCEP_REQUEST}"
    echo "done."
-	directory="/etc/openxpki/ca/"${REALM}"/"
-	if ls /etc/openxpki/ca/${REALM}/*[Ii][Nn][Tt][Ee][Rr]*.crt &> /dev/null
+	directory="${BASE_DIR}/ca/"${REALM}"/"
+	if ls ${BASE_DIR}/ca/${REALM}/*[Ii][Nn][Tt][Ee][Rr]*.crt &> /dev/null
    	then
       	# Begin Selection Process
       	PS3="Select the Intermediate (Issuing) Certificate you wish to sign with: "
@@ -647,8 +647,8 @@ then
         ISSUING_CA_KEY="${SSL_REALM}/`basename "${SSL_REALM}/${choiceInter}" "."${CERTIFICATE_SUFFIX}`"."${KEY_SUFFIX}"
         ISSUING_CA_KEY_PASSWORD="${SSL_REALM}/`basename "${SSL_REALM}/${choiceInter}" "."${CERTIFICATE_SUFFIX}`"."${PASS_SUFFIX}"
         ISSUING_CA_CERTIFICATE="${SSL_REALM}/${choiceInter}"
-        echo -e "\nSigning Scep with Intermediate" >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
-	echo "openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_scep_extensions -batch -days ${SDAYS} -in "${SCEP_REQUEST}" -cert "${ISSUING_CA_CERTIFICATE}" -passin file:"${ISSUING_CA_KEY_PASSWORD}" -keyfile "${ISSUING_CA_KEY}" -out "${SCEP_CERTIFICATE}"" >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
+        echo -e "\nSigning Scep with Intermediate" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
+	echo "openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_scep_extensions -batch -days ${SDAYS} -in "${SCEP_REQUEST}" -cert "${ISSUING_CA_CERTIFICATE}" -passin file:"${ISSUING_CA_KEY_PASSWORD}" -keyfile "${ISSUING_CA_KEY}" -out "${SCEP_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
 	openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_scep_extensions -batch -days ${SDAYS} -in "${SCEP_REQUEST}" -cert "${ISSUING_CA_CERTIFICATE}" -passin file:"${ISSUING_CA_KEY_PASSWORD}" -keyfile "${ISSUING_CA_KEY}" -out "${SCEP_CERTIFICATE}"
 	echo "done."
 	fi
@@ -663,8 +663,8 @@ then
    echo -n "Creating a self signed DataVault certificate .. "
    test -f "${DATAVAULT_CERTIFICATE}" && mv "${DATAVAULT_CERTIFICATE}" "${DATAVAULT_CERTIFICATE}${BACKUP_SUFFIX}"
    make_password "${DATAVAULT_KEY_PASSWORD}"
-   echo -e "\nCreating self-signed Datavault Certificate" >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
-   echo "openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_datavault_extensions -batch -x509 -newkey rsa:$DVBITS -days ${DDAYS} -passout file:"${DATAVAULT_KEY_PASSWORD}" -keyout "${DATAVAULT_KEY}" -subj "${DATAVAULT_SUBJECT}" -out "${DATAVAULT_CERTIFICATE}"" >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
+   echo -e "\nCreating self-signed Datavault Certificate" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
+   echo "openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_datavault_extensions -batch -x509 -newkey rsa:$DVBITS -days ${DDAYS} -passout file:"${DATAVAULT_KEY_PASSWORD}" -keyout "${DATAVAULT_KEY}" -subj "${DATAVAULT_SUBJECT}" -out "${DATAVAULT_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
    openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_datavault_extensions -batch -x509 -newkey rsa:$DVBITS -days ${DDAYS} -passout file:"${DATAVAULT_KEY_PASSWORD}" -keyout "${DATAVAULT_KEY}" -subj "${DATAVAULT_SUBJECT}" -out "${DATAVAULT_CERTIFICATE}"
    echo "done."
 fi;
@@ -678,11 +678,11 @@ then
    echo -n "Creating a Web request .. "
    test -f "${WEB_REQUEST}" && mv "${WEB_REQUEST}" "${WEB_REQUEST}${BACKUP_SUFFIX}"
    make_password "${WEB_KEY_PASSWORD}"
-   echo -e "\nGenerating Web Certificate Request" >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
-   echo "openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_web_reqexts -batch -newkey rsa:$BITS -passout file:"${WEB_KEY_PASSWORD}" -keyout "${WEB_KEY}" -subj "${WEB_SUBJECT}" -out "${WEB_REQUEST}"" >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
+   echo -e "\nGenerating Web Certificate Request" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
+   echo "openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_web_reqexts -batch -newkey rsa:$BITS -passout file:"${WEB_KEY_PASSWORD}" -keyout "${WEB_KEY}" -subj "${WEB_SUBJECT}" -out "${WEB_REQUEST}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
    openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_web_reqexts -batch -newkey rsa:$BITS -passout file:"${WEB_KEY_PASSWORD}" -keyout "${WEB_KEY}" -subj "${WEB_SUBJECT}" -out "${WEB_REQUEST}"
-	directory="/etc/openxpki/ca/"${REALM}"/"
-        if ls /etc/openxpki/ca/${REALM}/*[Ii][Nn][Tt][Ee][Rr]*.crt &> /dev/null
+	directory="${BASE_DIR}/ca/"${REALM}"/"
+        if ls ${BASE_DIR}/ca/${REALM}/*[Ii][Nn][Tt][Ee][Rr]*.crt &> /dev/null
         then
         # Begin Selection Process
         PS3="Select the Intermediate (Issuing) Certificate you wish to sign with: "
@@ -696,8 +696,8 @@ then
    ISSUING_CA_KEY="${SSL_REALM}/`basename "${SSL_REALM}/${choiceInter}" "."${CERTIFICATE_SUFFIX}`"."${KEY_SUFFIX}"
    ISSUING_CA_KEY_PASSWORD="${SSL_REALM}/`basename "${SSL_REALM}/${choiceInter}" "."${CERTIFICATE_SUFFIX}`"."${PASS_SUFFIX}"
    ISSUING_CA_CERTIFICATE="${SSL_REALM}/${choiceInter}"
-   directory="/etc/openxpki/ca/"${REALM}"/"
-   if ls /etc/openxpki/ca/${REALM}/*[Rr][Oo][Oo][Tt]*.crt &> /dev/null
+   directory="${BASE_DIR}/ca/"${REALM}"/"
+   if ls ${BASE_DIR}/ca/${REALM}/*[Rr][Oo][Oo][Tt]*.crt &> /dev/null
    then
       # Begin Selection Process
       PS3="Select the Root Certificate that signed ${choiceInter}: "
@@ -709,14 +709,14 @@ then
       echo -n "Signing "${REALM^}" Web Certificate with "${choiceRoot}" .. "
 #      test -f "${ISSUING_CA_CERTIFICATE}" && \
 #        mv "${ISSUING_CA_CERTIFICATE}" "${ISSUING_CA_CERTIFICATE}${BACKUP_SUFFIX}"
-#       echo -e "\nSigning Intermediate with Root." >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
+#       echo -e "\nSigning Intermediate with Root." >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
         ROOT_CA_KEY="${SSL_REALM}/`basename "${SSL_REALM}/${choiceRoot}" "."${CERTIFICATE_SUFFIX}`"."${KEY_SUFFIX}"
         ROOT_CA_KEY_PASSWORD="${SSL_REALM}/`basename "${SSL_REALM}/${choiceRoot}" "."${CERTIFICATE_SUFFIX}`"."${PASS_SUFFIX}"
         ROOT_CA_CERTIFICATE="${SSL_REALM}/${choiceRoot}"
    fi
    echo -n "Signing "${REALM}" Web Certificate with Intermediate CA .. "
-   echo -e "\nSigning Web Certificate Request with Intermediate." >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
-   echo -e "openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_web_extensions -batch -days ${WDAYS} -in "${WEB_REQUEST}" -cert "${ISSUING_CA_CERTIFICATE}" -passin file:"${ISSUING_CA_KEY_PASSWORD}" -keyfile "${ISSUING_CA_KEY}" -out "${WEB_CERTIFICATE}"" >> /etc/openxpki/ca/"${REALM}"/certificateCommands.txt
+   echo -e "\nSigning Web Certificate Request with Intermediate." >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
+   echo -e "openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_web_extensions -batch -days ${WDAYS} -in "${WEB_REQUEST}" -cert "${ISSUING_CA_CERTIFICATE}" -passin file:"${ISSUING_CA_KEY_PASSWORD}" -keyfile "${ISSUING_CA_KEY}" -out "${WEB_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
    openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_web_extensions -batch -days ${WDAYS} -in "${WEB_REQUEST}" -cert "${ISSUING_CA_CERTIFICATE}" -passin file:"${ISSUING_CA_KEY_PASSWORD}" -keyfile "${ISSUING_CA_KEY}" -out "${WEB_CERTIFICATE}"
    echo "Web Certificate has been signed."
    fi
@@ -827,7 +827,7 @@ echo "User: ""${input_db_user}"  "created."
 sudo mysql -u root -p"${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'localhost';"
 echo "Granting permissions on ""${input_db_name}" "to: ""${input_db_user}"
 sudo mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
-DATABASE_DIR="/etc/openxpki/config.d/system/database.yaml"
+DATABASE_DIR="${BASE_DIR}/config.d/system/database.yaml"
 sed -i "s/name: openxpki/name: "${input_db_name}"/" ${DATABASE_DIR}
 sed -i "s/user: openxpki/user: "${input_db_user}"/" ${DATABASE_DIR}
 sed -i "s@passwd: openxpki@passwd: "${input_db_pass}"@" ${DATABASE_DIR}
@@ -837,8 +837,8 @@ cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u root 
 }
 
 transfer_keys_files () {
-keys_dir="/etc/openxpki/local/keys/${REALM}/"
-vault_dir="/etc/openxpki/local/keys/"
+keys_dir="${BASE_DIR}/local/keys/${REALM}/"
+vault_dir="${BASE_DIR}/local/keys/"
 # Copy KEY file to PEM file because the designer chose PEM as the key extension...
 # The idea is that the Root Cert will be stored elsewhere, not this host.
 echo "Copying KEY files to PEM files for transfers to new directory."
@@ -908,8 +908,8 @@ echo "Done modifying folder and file permissions."
 #### Need to Add an additional keyword "0perational C0nfig" at the top of target file
 #### so we can put these 'seds' into an if state and only run them only once.
 #### Modify the new realm crypto.yaml file with new variables
-#echo "REALM_YAML="/etc/openxpki/config.d/realm/${REALM}/crypto.yaml"" #debug
-REALM_YAML="/etc/openxpki/config.d/realm/${REALM}/crypto.yaml"
+#echo "REALM_YAML="${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml"" #debug
+REALM_YAML="${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml"
 
 # Has the crypto.yaml file been edited before? Checking for our keyword to decide.
 echo "Editing config file at: ${REALM_YAML}"
@@ -936,7 +936,7 @@ echo "
         export: 0
         method: literal
         value: ${v_DATAVAULT_KEY_PASSWORD}
-" >> /etc/openxpki/config.d/realm/${REALM}/crypto.yaml
+" >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
 fi
 if [ $import_xpki_Inter == "1" ]; then
 echo "
@@ -945,7 +945,7 @@ echo "
         export: 0
         method: literal
         value: ${v_ISSUING_CA_KEY_PASSWORD}
-" >> /etc/openxpki/config.d/realm/${REALM}/crypto.yaml
+" >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
 fi
 if [ $import_xpki_Scep == "1" ]; then
 echo "
@@ -954,7 +954,7 @@ echo "
         export: 0
         method: literal
         value: ${v_SCEP_KEY_PASSWORD}
-" >> /etc/openxpki/config.d/realm/${REALM}/crypto.yaml
+" >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
 fi
 else
  echo -e "\nThis config file has not been edited by this script. Assuming it's a new copy from the "
@@ -962,13 +962,13 @@ else
  # Have to keep the first sed command at the top because we're counting lines.
  sed -i '53 s|default:|# default:|g' ${REALM_YAML}
  sed -i '43d' ${REALM_YAML}
- sed -i '42 a\    key: /etc/openxpki/local/keys/[% PKI_REALM %]/[% ALIAS %].pem' ${REALM_YAML}
+ sed -i '42 a\    key: ${BASE_DIR}/local/keys/[% PKI_REALM %]/[% ALIAS %].pem' ${REALM_YAML}
  sed -i -z 's/import:/# import:/1' ${REALM_YAML}
  sed -i -z 's/secret: default/# secret: default/' ${REALM_YAML}
  sed -i '/ca-signer:/a\    secret: ca-signer' ${REALM_YAML} # Add version number?
  sed -i '/LibSCEP/a\    secret: scep' ${REALM_YAML} # Add version number?
  sed -i '/vault:/a\    secret: vault' ${REALM_YAML} # Add version number?
- sed -i 's@key: /etc/openxpki/local/keys/[% ALIAS %].pem@key: /etc/openxpki/local/keys/[% PKI_REALM %]/[% ALIAS %].pem@' ${REALM_YAML}
+ sed -i 's@key: ${BASE_DIR}/local/keys/[% ALIAS %].pem@key: ${BASE_DIR}/local/keys/[% PKI_REALM %]/[% ALIAS %].pem@' ${REALM_YAML}
  sed -i '1s/^/#0perational C0nfig\n/' ${REALM_YAML} # Tag the config so we don't fill it with these settings again.
 # put contents of the password file into a variable to pass into the crypto.yaml file
 if [ $import_xpki_Inter == "1" ]; then
@@ -987,7 +987,7 @@ echo "
         export: 0
         method: literal
         value: ${v_DATAVAULT_KEY_PASSWORD}
-" >> /etc/openxpki/config.d/realm/${REALM}/crypto.yaml
+" >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
 fi
 if [ $import_xpki_Inter == "1" ]; then
 echo "
@@ -996,7 +996,7 @@ echo "
         export: 0
         method: literal
         value: ${v_ISSUING_CA_KEY_PASSWORD}
-" >> /etc/openxpki/config.d/realm/${REALM}/crypto.yaml
+" >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
 fi
 if [ $import_xpki_Scep == "1" ]; then
 echo "
@@ -1005,7 +1005,7 @@ echo "
         export: 0
         method: literal
         value: ${v_SCEP_KEY_PASSWORD}
-" >> /etc/openxpki/config.d/realm/${REALM}/crypto.yaml
+" >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
 fi
 fi
 }
@@ -1054,24 +1054,24 @@ a2ensite openxpki
 a2dissite 000-default default-ssl
 
 # if you're regenerating SSL Keys, then you need to delete this chain folder, or edit this if to include some user input
-if [ ! -e "/etc/openxpki/tls/chain" ]; then
-    mkdir -m755 -p /etc/openxpki/tls/chain
+if [ ! -e "${BASE_DIR}/tls/chain" ]; then
+    mkdir -m755 -p ${BASE_DIR}/tls/chain
     # The files in this directory have to be PEM-encoded and are accessed through hash filenames.
     # https://httpd.apache.org/docs/current/mod/mod_ssl.html#sslcacertificatefile
-    openssl x509 -in "${ROOT_CA_CERTIFICATE}" -out /etc/openxpki/tls/chain/Root.pem
-    openssl x509 -in "${ISSUING_CA_CERTIFICATE}" -out /etc/openxpki/tls/chain/Inter.pem
-    c_rehash /etc/openxpki/tls/chain/
+    openssl x509 -in "${ROOT_CA_CERTIFICATE}" -out ${BASE_DIR}/tls/chain/Root.pem
+    openssl x509 -in "${ISSUING_CA_CERTIFICATE}" -out ${BASE_DIR}/tls/chain/Inter.pem
+    c_rehash ${BASE_DIR}/tls/chain/
 fi
 
-if [ ! -e "/etc/openxpki/tls/endentity/openxpki.crt" ]; then
-    mkdir -m755 -p /etc/openxpki/tls/endentity
-    mkdir -m700 -p /etc/openxpki/tls/private
-    `cp -r ${WEB_CERTIFICATE} /etc/openxpki/tls/endentity/openxpki.crt`
-    cat ${ISSUING_CA_CERTIFICATE} >> /etc/openxpki/tls/endentity/openxpki.crt
+if [ ! -e "${BASE_DIR}/tls/endentity/openxpki.crt" ]; then
+    mkdir -m755 -p ${BASE_DIR}/tls/endentity
+    mkdir -m700 -p ${BASE_DIR}/tls/private
+    `cp -r ${WEB_CERTIFICATE} ${BASE_DIR}/tls/endentity/openxpki.crt`
+    cat ${ISSUING_CA_CERTIFICATE} >> ${BASE_DIR}/tls/endentity/openxpki.crt
     echo -e "\nWeb Certificate"
-    echo "openssl rsa -in ${WEB_KEY} -passin file:${WEB_KEY_PASSWORD} -out /etc/openxpki/tls/private/openxpki.pem" >> certificateCommands.txt
-    openssl rsa -in ${WEB_KEY} -passin file:${WEB_KEY_PASSWORD} -out /etc/openxpki/tls/private/openxpki.pem
-    chmod 400 /etc/openxpki/tls/private/openxpki.pem
+    echo "openssl rsa -in ${WEB_KEY} -passin file:${WEB_KEY_PASSWORD} -out ${BASE_DIR}/tls/private/openxpki.pem" >> certificateCommands.txt
+    openssl rsa -in ${WEB_KEY} -passin file:${WEB_KEY_PASSWORD} -out ${BASE_DIR}/tls/private/openxpki.pem
+    chmod 400 ${BASE_DIR}/tls/private/openxpki.pem
     service apache2 restart
 fi
 
