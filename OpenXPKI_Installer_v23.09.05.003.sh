@@ -1133,7 +1133,7 @@ echo $v_new_user_saltPass
 # Add new user details to the userdb or admindb
 if [ $v_new_user_role == "CA" ] || [ $v_new_user_role == "RA" ]; then
 	userFile='/home/pkiadm/admindb.yaml'
-	if [ -z $userFile ]; then
+	if [ ! -f $userFile ]; then
     touch $userFile
 	fi
 #	echo $v_new_user $v_new_user_saltPass $v_new_user_role 
@@ -1145,7 +1145,7 @@ if [ $v_new_user_role == "CA" ] || [ $v_new_user_role == "RA" ]; then
 fi
 if [ $v_new_user_role == "user" ]; then
 	userFile='/home/pkiadm/userdb.yaml'
-	if [ -z "$userFile" ]; then
+	if [ ! -f "$userFile" ]; then
     touch $userFile
 	fi
 	echo >>"
