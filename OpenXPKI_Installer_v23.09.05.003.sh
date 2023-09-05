@@ -161,6 +161,16 @@ else
 fi
 }
 
+question_email () {
+# Email
+echo -e "What's your email address or distro for the root certs?\n"
+read input_email
+if [ -z "$input_email" ]; then
+    v_EMAIL="admin@"
+else
+    v_EMAIL="${input_email^}"
+fi
+}
 #################################################
 ### source: Github User Pirasakat             ###
 ### https://gist.github.com/pirasakat/4076262 ###
@@ -199,6 +209,7 @@ echo "Realm: '${REALM^^}'"
 echo "Country: '${COUNTRY}'"
 echo "State: '${STATE}'"
 echo "Locality: '${LOCALITY}'"
+echo "Email Address: '${v_EMAIL}'"
 echo "Root Version: '${rootVer}'"
 echo "Issuer Version: '${interVer}'"
 echo "Scep Version: '${scepVer}'"
@@ -250,7 +261,7 @@ ROOT_CA_PEM="${SSL_REALM}/${ROOT_CA}.${PEM_SUFFIX}"
 ROOT_CA_KEY_PASSWORD="${SSL_REALM}/${ROOT_CA}.${PASS_SUFFIX}"
 ROOT_CA_CERTIFICATE="${SSL_REALM}/${ROOT_CA}.${CERTIFICATE_SUFFIX}"
 #ROOT_CA_choiceRoot="${SSL_REALM}/${choiceRoot}"
-ROOT_CA_SUBJECT="/C=${COUNTRY^^}/ST=${STATE^^}/L=${LOCALITY^^}/O=${REALM^^}/OU=${OrgU^^}/${DCFQDN}/CN=${REALM^^} Root CA ${rootVer}"
+ROOT_CA_SUBJECT="/emailAddress=${v_EMAIL}/C=${COUNTRY^^}/ST=${STATE^^}/L=${LOCALITY^^}/O=${REALM^^}/OU=${OrgU^^}/${DCFQDN}/CN=${REALM^^} Root CA ${rootVer}"
 ROOT_CA_SERVER_FQDN="${FQDN}"
   # Show user the expected output.
   if [ $import_xpki_Root == "1" ]; then
@@ -264,7 +275,7 @@ ISSUING_CA_KEY="${SSL_REALM}/${ISSUING_CA}.${KEY_SUFFIX}"
 ISSUING_CA_PEM="${SSL_REALM}/${ISSUING_CA}.${PEM_SUFFIX}"
 ISSUING_CA_KEY_PASSWORD="${SSL_REALM}/${ISSUING_CA}.${PASS_SUFFIX}"
 ISSUING_CA_CERTIFICATE="${SSL_REALM}/${ISSUING_CA}.${CERTIFICATE_SUFFIX}"
-ISSUING_CA_SUBJECT="/C=${COUNTRY^^}/ST=${STATE^^}/L=${LOCALITY^^}/O=${REALM^^}/OU=${OrgU^^}/${DCFQDN}/CN=${REALM^^} Intermediate CA ${interVer}"
+ISSUING_CA_SUBJECT="/emailAddress=${v_EMAIL}/C=${COUNTRY^^}/ST=${STATE^^}/L=${LOCALITY^^}/O=${REALM^^}/OU=${OrgU^^}/${DCFQDN}/CN=${REALM^^} Intermediate CA ${interVer}"
   # Show user the expected output.
   if [ $import_xpki_Inter == "1" ]; then
   echo "${ISSUING_CA_SUBJECT}"
@@ -277,7 +288,7 @@ SCEP_KEY="${SSL_REALM}/${SCEP}.${KEY_SUFFIX}"
 SCEP_PEM="${SSL_REALM}/${SCEP}.${PEM_SUFFIX}"
 SCEP_KEY_PASSWORD="${SSL_REALM}/${SCEP}.${PASS_SUFFIX}"
 SCEP_CERTIFICATE="${SSL_REALM}/${SCEP}.${CERTIFICATE_SUFFIX}"
-SCEP_SUBJECT="/C=${COUNTRY^^}/ST=${STATE^^}/L=${LOCALITY^^}/O=${REALM^^}/OU=${OrgU^^}/${DCFQDN}/CN=${FQDN}:${REALM,,}-SCEP-RA-${scepVer}"
+SCEP_SUBJECT="/emailAddress=${v_EMAIL}/C=${COUNTRY^^}/ST=${STATE^^}/L=${LOCALITY^^}/O=${REALM^^}/OU=${OrgU^^}/${DCFQDN}/CN=${FQDN}:${REALM,,}-SCEP-RA-${scepVer}"
   # Show user the expected output.
   if [ $import_xpki_Scep == "1" ]; then
   echo "${SCEP_SUBJECT}"
@@ -290,7 +301,7 @@ WEB_KEY="${SSL_REALM}/${WEB}.${KEY_SUFFIX}"
 WEB_PEM="${SSL_REALM}/${WEB}.${PEM_SUFFIX}"
 WEB_KEY_PASSWORD="${SSL_REALM}/${WEB}.${PASS_SUFFIX}"
 WEB_CERTIFICATE="${SSL_REALM}/${WEB}.${CERTIFICATE_SUFFIX}"
-WEB_SUBJECT="/C=${COUNTRY^^}/ST=${STATE^^}/L=${LOCALITY^^}/O=${REALM^^}/OU=${OrgU^^}/${DCFQDN}/CN=${FQDN} Web Cert ${webVer}"
+WEB_SUBJECT="/emailAddress=${v_EMAIL}/C=${COUNTRY^^}/ST=${STATE^^}/L=${LOCALITY^^}/O=${REALM^^}/OU=${OrgU^^}/${DCFQDN}/CN=${FQDN} Web Cert ${webVer}"
 WEB_SERVER_FQDN="`hostname -f`"
 WEB_SERVER_FQDN="`hostname -f`"
   # Show user the expected output.
@@ -305,7 +316,7 @@ DATAVAULT_KEY="${SSL_REALM}/${DATAVAULT}.${KEY_SUFFIX}"
 DATAVAULT_PEM="${SSL_REALM}/${DATAVAULT}.${PEM_SUFFIX}"
 DATAVAULT_KEY_PASSWORD="${SSL_REALM}/${DATAVAULT}.${PASS_SUFFIX}"
 DATAVAULT_CERTIFICATE="${SSL_REALM}/${DATAVAULT}.${CERTIFICATE_SUFFIX}"
-DATAVAULT_SUBJECT="/C=${COUNTRY^^}/ST=${STATE^^}/L=${LOCALITY^^}/O=${REALM^^}/OU=${OrgU^^}/${DCFQDN}/CN=${REALM^^} Internal DataVault"
+DATAVAULT_SUBJECT="/emailAddress=${v_EMAIL}/C=${COUNTRY^^}/ST=${STATE^^}/L=${LOCALITY^^}/O=${REALM^^}/OU=${OrgU^^}/${DCFQDN}/CN=${REALM^^} Internal DataVault"
   # Show user the expected output.
   if [ $import_xpki_DV == "1" ]; then
   echo "${DATAVAULT_SUBJECT}"
@@ -791,11 +802,7 @@ if [ "${input_secureDB,,}" == "y" ] || [ "${input_secureDB,,}" == "yes" ]; then
 ROOT_PW="${input_rootpw_2}"
   while [ "${confirm_db}" != "y" ]
   do
-#    echo -e "What would you like to name your Database?\n"
-#    read input_db_name
 input_db_name="openxpki"
-#    echo -e "What's the username for the database?\n"
-#    read input_db_user
 input_db_user="openxpki"
 #    echo -e "What's the password for the database?\n"
 #    read input_db_pass
