@@ -20,7 +20,7 @@ fi
 ipAddr=`hostname -I`
 # Grab the hostname for reference
 FQDN=`hostname -f`
-# Capitalize hostname for some magic we're going to do
+# Capitalize hostname
 UFQDN="${FQDN^^}"
 
 check_installed () {
@@ -143,7 +143,7 @@ question_state () {
 echo -e "What's your two-letter State or equivalent code? Defaul is: DC\n"
 read input_state
 if [ -z "$input_state" ]; then
-    STATE="DC"
+    STATE="VA"
 else
     STATE="${input_state^^}"
 fi
@@ -151,10 +151,10 @@ fi
 
 question_locality () {
 # Locality Code
-echo -e "What's your locality? This can be the city, town, village etc.. Default is: Manchester\n"
+echo -e "What's your locality? This can be the city, town, village etc.. Default is: WB\n"
 read input_locality
 if [ -z "$input_locality" ]; then
-    LOCALITY="Manchester"
+    LOCALITY="WB"
 else
     LOCALITY="${input_locality^}"
 fi
@@ -367,11 +367,11 @@ define_openssl () {
 #
 BITS="8192"
 DVBITS="16384" # Customizing Datavault bits for experimenting
-DAYS="730" # 2 years (default value not used for further enhancements)
+DAYS="397" # 397 days, Setting to 397 since apple said they wouldn't support over 398 days
 RDAYS="7305" # 20 years for root
 IDAYS="5479" # 15 years for issuing
 SDAYS="365" # 1 years for scep
-WDAYS="1096" # 3 years web
+WDAYS="397" # 3 years web
 DDAYS="$RDAYS" # 20 years datavault (same a root)
 SDATE="$input_SDATE" # Need the correct format # incorporate with if statements
 EDATE="$input_EDATE" # Need the correct format # incorporate with if statements
@@ -440,12 +440,13 @@ stateOrProvinceName_default     = "${STATE}"
 #x509_extensions               = v3_web_extensions
 
 [ policy_match ]
-countryName             = optional
-stateOrProvinceName	    = optional
-organizationName        = optional
-organizationalUnitName	= optional
-commonName		        = optional
-emailAddress	       	= optional
+countryName             = match
+stateOrProvinceName	    = supplied
+localityName            = supplied
+organizationName        = match
+organizationalUnitName	= supplied
+commonName		        = supplied
+emailAddress	       	= supplied
 
 # x509_extensions               = v3_ca_reqexts # not for root self signed, only for issuing
 # x509_extensions              = v3_datavault_reqexts # not required self signed
@@ -691,6 +692,7 @@ then
          echo "Selected certificate: $choiceInter"
          break
          done #4321
+
         echo -n "Signing "${REALM}" Web Certificate with "${choiceInter}" .. "
    echo "Web request has been generated."
    ISSUING_CA_KEY="${SSL_REALM}/`basename "${SSL_REALM}/${choiceInter}" "."${CERTIFICATE_SUFFIX}`"."${KEY_SUFFIX}"
@@ -788,16 +790,19 @@ if [ "${input_secureDB,,}" == "y" ] || [ "${input_secureDB,,}" == "yes" ]; then
 ROOT_PW="${input_rootpw_2}"
   while [ "${confirm_db}" != "y" ]
   do
-    echo -e "What would you like to name your Database?\n"
-    read input_db_name
-    echo -e "What's the username for the database?\n"
-    read input_db_user
-    echo -e "What's the password for the database?\n"
-    read input_db_pass
+#    echo -e "What would you like to name your Database?\n"
+#    read input_db_name
+input_db_name="openxpki"
+#    echo -e "What's the username for the database?\n"
+#    read input_db_user
+input_db_user="openxpki"
+#    echo -e "What's the password for the database?\n"
+#    read input_db_pass
+input_db_pass=`openssl rand 40 | base64`
     echo -e "Your database will be configured with the following settings:\n"
     echo "Database name: ""${input_db_name}"
     echo "Database user: ""${input_db_user}"
-    echo "Database pass: ""${input_db_pass}"
+    echo "Database pass: ""Viewable in the database.yaml file."
     echo -e "Do you accept these settings? Y | y\n"
     read confirm_db
     if [ "${confirm_db,,}" != "y" ]; then
@@ -992,6 +997,7 @@ fi
 if [ $import_xpki_Inter == "1" ]; then
 echo "
     ca-signer:
+        label: ${ISSUING_CA}
         label: ${ISSUING_CA}
         export: 0
         method: literal
