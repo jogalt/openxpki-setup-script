@@ -1126,13 +1126,10 @@ read v_new_user
 echo "Enter user password."
 echo ""
 read v_new_user_pass
-salt="$(openssl rand -base64 3)"
-#password="secretpassword"
+salt=$(openssl rand -base64 3)
 #$(echo -n $(echo -n "$password$salt" | openssl sha1 -binary)$salt | openssl enc -base64)
-#salt=`openssl rand -base64 3`
 echo $salt
-#v_new_user_saltPass=`echo -n "$v_new_user_pass$salt" | openssl sha1 -binary` # )$salt` | openssl enc -base64`
-v_new_user_saltPass=$(echo -n $(echo -n "$password$salt" | openssl sha1 -binary)$salt | openssl enc -base64)
+v_new_user_saltPass=$(echo -n "$password$salt" | openssl sha1 -binary)$salt | openssl enc -base64)
 echo $v_new_user_saltPass
 # Add new user details to the userdb or admindb
 if [ $v_new_user_role == "CA" ] || [ $v_new_user_role == "RA" ]; then
@@ -1140,7 +1137,7 @@ if [ $v_new_user_role == "CA" ] || [ $v_new_user_role == "RA" ]; then
 	if [ -z $userFile ]; then
     touch $userFile
 	fi
-	echo >>"
+	echo "
 	$v_new_user:
 		digest: "{SSHA}"$v_new_user_saltPass
 		role: $v_new_user_role Operator
