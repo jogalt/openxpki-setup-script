@@ -1128,10 +1128,11 @@ echo ""
 read v_new_user_pass
 salt="$(openssl rand -base64 3)"
 #password="secretpassword"
-#echo -n $(echo -n "$password$salt" | openssl sha1 -binary)$salt | openssl enc -base64
+#$(echo -n $(echo -n "$password$salt" | openssl sha1 -binary)$salt | openssl enc -base64)
 #salt=`openssl rand -base64 3`
 echo $salt
-v_new_user_saltPass=`echo -n "$v_new_user_pass$salt" | openssl sha1 -binary` # )$salt` | openssl enc -base64`
+#v_new_user_saltPass=`echo -n "$v_new_user_pass$salt" | openssl sha1 -binary` # )$salt` | openssl enc -base64`
+v_new_user_saltPass=$(echo -n $(echo -n "$password$salt" | openssl sha1 -binary)$salt | openssl enc -base64)
 # Add new user details to the userdb or admindb
 if [ $v_new_user_role == "CA" ] || [ $v_new_user_role == "RA" ]; then
 	userFile=/home/pkiadm/admindb.yaml
