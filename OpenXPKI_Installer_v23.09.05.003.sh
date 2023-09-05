@@ -1129,7 +1129,7 @@ read v_new_user_pass
 salt="$(openssl rand -base64 3)"
 v_new_user_saltPass=`($v_new_user_pass$salt" | openssl sha1 -binary)$salt | openssl enc -base64`
 # Add new user details to the userdb or admindb
-if [ $v_new_user_role == "CA" || $v_new_user_role == "RA" ]; then
+if [ $v_new_user_role == "CA" ] || [ $v_new_user_role == "RA" ]; then
 	userFile=/home/pkiadm/admindb.yaml
 	if [ -z "$userFile" ]; then
     touch $userFile
