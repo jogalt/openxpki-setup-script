@@ -1137,23 +1137,20 @@ if [ $v_new_user_role == "CA" ] || [ $v_new_user_role == "RA" ]; then
     touch $userFile
 	fi
 #	echo $v_new_user $v_new_user_saltPass $v_new_user_role 
-	echo "
-	$v_new_user:
-		digest: "{SSHA}"$v_new_user_saltPass
-		role: $v_new_user_role Operator
-		"
+	echo "$v_new_user:
+	digest: "{SSHA}"$v_new_user_saltPass
+	role: $v_new_user_role Operator" >> $userFile
 fi
-if [ $v_new_user_role == "user" ]; then
+if [ $v_new_user_role == "User" ]; then
 	userFile='/home/pkiadm/userdb.yaml'
-	if [ ! -f "$userFile" ]; then
+	if [ ! -f $userFile ]; then
     touch $userFile
 	fi
-	echo >>"
-	$v_new_user:
-		digest: "{SSHA}$v_new_user_saltPass"
-		role: $v_new_user_role
-		"
+	echo "$v_new_user:
+	digest: "{SSHA}"$v_new_user_saltPass
+	role: $v_new_user_role" >> $userFile
 fi
+create_new_user
 }
 
 create_new_user () {
