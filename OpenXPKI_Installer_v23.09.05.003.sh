@@ -1146,7 +1146,6 @@ User)
 *)
   echo "Invalid Option: $REPLY"
   ;;
-esac
 echo "Enter user password."
 echo ""
 read v_new_user_pass
@@ -1175,6 +1174,7 @@ if [ $v_new_user_role == "user" ]; then
 		role: $v_new_user_role
 		"
 fi
+esac
 done
 }
 
