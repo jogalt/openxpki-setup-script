@@ -525,13 +525,10 @@ keyUsage                = digitalSignature, keyCertSign, cRLSign
 [ v3_datavault_reqexts ]
 subjectKeyIdentifier    = hash
 keyUsage                = keyEncipherment
-basicConstraints        = CA:FALSE
-authorityKeyIdentifier  = keyid:always,issuer
+extendedKeyUsage        = emailProtection
 
 [ v3_scep_reqexts ]
 subjectKeyIdentifier    = hash
-basicConstraints        = CA:FALSE
-authorityKeyIdentifier  = keyid,issuer
 
 [ v3_web_reqexts ]
 subjectKeyIdentifier    = hash
@@ -555,6 +552,7 @@ authorityInfoAccess	= caIssuers;"${ROOT_CA_CERTIFICATE_URI}"
 [ v3_datavault_extensions ]
 subjectKeyIdentifier    = hash
 keyUsage                = keyEncipherment
+extendedKeyUsage        = emailProtection
 basicConstraints        = CA:FALSE
 authorityKeyIdentifier  = keyid:always,issuer
 
@@ -670,13 +668,13 @@ gen_RatokenCert() {
 # ratoken certificate
 if [ ! -e "${RATOKEN_KEY}" ]
 then
-   echo "Did not find existing "${REALM}" RATOKEN "${scepVer}" certificate file."
+   echo "Did not find existing "${REALM}" RATOKEN "${ratokenVer}" certificate file."
    echo -n "Creating a "${REALM}" RATOKEN "${ratokenVer}" request .. "
    test -f "${RATOKEN_REQUEST}" && mv "${RATOKEN_REQUEST}" "${RATOKEN_REQUEST}${BACKUP_SUFFIX}"
    make_password "${RATOKEN_KEY_PASSWORD}"
    echo -e "\nRATOKEN Request" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
    echo -e "openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_ratoken_reqexts -batch -newkey rsa:$BITS -passout file:"${RATOKEN_KEY_PASSWORD}" -keyout "${RATOKEN_KEY}" -subj "${RATOKEN_SUBJECT}" -out "${RATOKEN_REQUEST}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
-   openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_ratoken_reqexts -batch -newkey rsa:$BITS -passout file:"${RATOKEN_KEY_PASSWORD}" -keyout "${RATOKEN_KEY}" -subj "${RATOKEN_SUBJECT}" -out "${RATOKEN_REQUEST}"
+   openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_issuing_extensions -batch -newkey rsa:$BITS -passout file:"${RATOKEN_KEY_PASSWORD}" -keyout "${RATOKEN_KEY}" -subj "${RATOKEN_SUBJECT}" -out "${RATOKEN_REQUEST}"
    echo "done."
 	directory="${BASE_DIR}/ca/"${REALM}"/"
 	if ls ${BASE_DIR}/ca/${REALM}/*[Ii][Nn][Tt][Ee][Rr]*.crt &> /dev/null
@@ -694,8 +692,8 @@ then
         ISSUING_CA_KEY_PASSWORD="${SSL_REALM}/`basename "${SSL_REALM}/${choiceInter}" "."${CERTIFICATE_SUFFIX}`"."${PASS_SUFFIX}"
         ISSUING_CA_CERTIFICATE="${SSL_REALM}/${choiceInter}"
         echo -e "\nSigning Ratoken with Intermediate" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
-	echo "openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_ratoken_extensions -batch -days ${SDAYS} -in "${RATOKEN_REQUEST}" -cert "${ISSUING_CA_CERTIFICATE}" -passin file:"${ISSUING_CA_KEY_PASSWORD}" -keyfile "${ISSUING_CA_KEY}" -out "${RATOKEN_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
-	openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_ratoken_extensions -batch -days ${SDAYS} -in "${RATOKEN_REQUEST}" -cert "${ISSUING_CA_CERTIFICATE}" -passin file:"${ISSUING_CA_KEY_PASSWORD}" -keyfile "${ISSUING_CA_KEY}" -out "${RATOKEN_CERTIFICATE}"
+	echo "openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_issuing_extensions -batch -days ${SDAYS} -in "${RATOKEN_REQUEST}" -cert "${ISSUING_CA_CERTIFICATE}" -passin file:"${ISSUING_CA_KEY_PASSWORD}" -keyfile "${ISSUING_CA_KEY}" -out "${RATOKEN_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
+	openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_issuing_extensions -batch -days ${SDAYS} -in "${RATOKEN_REQUEST}" -cert "${ISSUING_CA_CERTIFICATE}" -passin file:"${ISSUING_CA_KEY_PASSWORD}" -keyfile "${ISSUING_CA_KEY}" -out "${RATOKEN_CERTIFICATE}"
 	echo "done."
 	fi
 fi;
@@ -931,6 +929,10 @@ if [ $import_xpki_Scep == "1" ]; then
 echo "Copying SCEP"
 cp ${SCEP_KEY} ${SSL_REALM}/${SCEP}.${PEM_SUFFIX}
 fi
+if [ $import_xpki_Ratoken == "1" ]; then
+echo "Copying RATOKEN"
+cp ${RATOKEN_KEY} ${SSL_REALM}/${RATOKEN}.${PEM_SUFFIX}
+fi
 if [ $import_xpki_Web == "1" ]; then
 echo "Copying WEB"
 cp ${WEB_KEY} ${SSL_REALM}/${WEB}.${PEM_SUFFIX}
@@ -1025,27 +1027,27 @@ token:
     # random file to use for OpenSSL
     randfile: /var/openxpki/rand
 
+  vault:
+    inherit: default
+    key: /etc/openxpki/local/keys/vault-1.pem
+    secret: vault
+
   ca-signer:
     inherit: default
     key_store: DATAPOOL
-    key: "[% KEY_IDENTIFIER %]"
+    key: ${vault_dir}${REALM}/${ISSUING_CA}.pem
     secret: ca-signer
-
-  vault:
-    inherit: default
-    key: /etc/openxpki/local/keys/[% ALIAS %].pem
-    secret: vault
 
   ratoken:
     inherit: default
     key_store: DATAPOOL
-    key: "[% KEY_IDENTIFIER %]"
+    key: ${vault_dir}${REALM}/${RATOKEN}.pem
     secret: ratoken
 
   scep:
     inherit: default
     key_store: DATAPOOL
-    key: "[% KEY_IDENTIFIER %]"
+    key: ${vault_dir}${REALM}/${SCEP}.pem
     secret: scep
 
 # Define the secret groups
@@ -1195,7 +1197,8 @@ echo "openxpkiadm certificate import --file "${DATAVAULT_CERTIFICATE}"" >> openx
 openxpkiadm certificate import --file "${DATAVAULT_CERTIFICATE}"
 echo -e "\nRegistering Datavault Certificate ${DATAVAULT_CERTIFICATE} as datasafe token.."
 echo "openxpkiadm alias --file "${DATAVAULT_CERTIFICATE}" --realm "${REALM}" --token datasafe" >> openxpkiadmCommands.txt
-openxpkiadm alias --file "${DATAVAULT_CERTIFICATE}" --realm "${REALM}" --token datasafe
+openxpkiadm alias --realm "${REALM}" --token datasafe --file "${DATAVAULT_CERTIFICATE}" --key /etc/openxpki/local/keys/vault-1.pem
+sleep 1;
 }
 
 # Keys NEED to be added to keys directory before these commands happen or the import fails
@@ -1215,7 +1218,7 @@ echo -e "Done.\n"
 # Keys NEED to be added to keys directory before these commands happen or the import fails
 openxpkiadm_ratoken () {
 echo "openxpkiadm alias --file "${RATOKEN_CERTIFICATE}" --realm "${REALM}" --token ratoken  --key "${RATOKEN_KEY}"" >> openxpkiadmCommands.txt
-openxpkiadm alias --file "${RATOKEN_CERTIFICATE}" --realm "${REALM}" --token ratoken  --key "${RATOKEN_KEY}"
+openxpkiadm alias --file "${RATOKEN_CERTIFICATE}" --realm "${REALM}" --token cmcra  --key "${RATOKEN_KEY}"
 echo -e "Done.\n"
 }
 
@@ -1258,7 +1261,7 @@ if [ $import_xpki_Root == "1" ] || [ $import_xpki_DV == "1" ]; then
 echo "Stopping OpenXPKI if it's running.."
 if pgrep "openxpki" > /dev/null
 then
-    openxpkictl stop
+    openxpkictl start
 fi
 fi
 if [ $import_xpki_Root == "1" ]; then
