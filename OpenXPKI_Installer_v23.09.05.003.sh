@@ -476,12 +476,6 @@ stateOrProvinceName_default     = "${STATE}"
 0.organizationName_default      = "${REALM}"
 0.organizationUnitName_default  = "${OrgU}"
 
-#x509_extensions               = v3_ca_extensions
-#x509_extensions               = v3_issuing_extensions
-#x509_extensions               = v3_datavault_extensions
-#x509_extensions               = v3_scep_extensions
-#x509_extensions               = v3_web_extensions
-
 [ policy_match ]
 countryName             = match
 stateOrProvinceName	    = supplied
@@ -547,7 +541,8 @@ keyUsage                = digitalSignature, keyCertSign, cRLSign
 basicConstraints        = critical,CA:TRUE
 authorityKeyIdentifier  = keyid:always,issuer:always
 crlDistributionPoints	= "${ROOT_CA_REVOCATION_URI}"
-authorityInfoAccess	= caIssuers;"${ROOT_CA_CERTIFICATE_URI}"
+authorityInfoAccess	    = caIssuers;"${ROOT_CA_CERTIFICATE_URI}"
+extendedKeyUsage        = cmcCA
 
 [ v3_datavault_extensions ]
 subjectKeyIdentifier    = hash
@@ -560,6 +555,11 @@ authorityKeyIdentifier  = keyid:always,issuer
 subjectKeyIdentifier    = hash
 basicConstraints        = CA:FALSE
 authorityKeyIdentifier  = keyid,issuer
+
+[ v3_ratoken_extensions ]
+subjectKeyIdentifier    = hash
+basicConstraints        = CA:FALSE
+extendedKeyUsage        = cmcRA
 
 [ v3_web_extensions ]
 subjectKeyIdentifier    = hash
@@ -673,8 +673,8 @@ then
    test -f "${RATOKEN_REQUEST}" && mv "${RATOKEN_REQUEST}" "${RATOKEN_REQUEST}${BACKUP_SUFFIX}"
    make_password "${RATOKEN_KEY_PASSWORD}"
    echo -e "\nRATOKEN Request" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
-   echo -e "openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_ratoken_reqexts -batch -newkey rsa:$BITS -passout file:"${RATOKEN_KEY_PASSWORD}" -keyout "${RATOKEN_KEY}" -subj "${RATOKEN_SUBJECT}" -out "${RATOKEN_REQUEST}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
-   openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_issuing_extensions -batch -newkey rsa:$BITS -passout file:"${RATOKEN_KEY_PASSWORD}" -keyout "${RATOKEN_KEY}" -subj "${RATOKEN_SUBJECT}" -out "${RATOKEN_REQUEST}"
+   echo -e "openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_ratoken_extensions -batch -newkey rsa:$BITS -passout file:"${RATOKEN_KEY_PASSWORD}" -keyout "${RATOKEN_KEY}" -subj "${RATOKEN_SUBJECT}" -out "${RATOKEN_REQUEST}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
+   openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_ratoken_extensions -batch -newkey rsa:$BITS -passout file:"${RATOKEN_KEY_PASSWORD}" -keyout "${RATOKEN_KEY}" -subj "${RATOKEN_SUBJECT}" -out "${RATOKEN_REQUEST}"
    echo "done."
 	directory="${BASE_DIR}/ca/"${REALM}"/"
 	if ls ${BASE_DIR}/ca/${REALM}/*[Ii][Nn][Tt][Ee][Rr]*.crt &> /dev/null
@@ -692,8 +692,8 @@ then
         ISSUING_CA_KEY_PASSWORD="${SSL_REALM}/`basename "${SSL_REALM}/${choiceInter}" "."${CERTIFICATE_SUFFIX}`"."${PASS_SUFFIX}"
         ISSUING_CA_CERTIFICATE="${SSL_REALM}/${choiceInter}"
         echo -e "\nSigning Ratoken with Intermediate" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
-	echo "openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_issuing_extensions -batch -days ${SDAYS} -in "${RATOKEN_REQUEST}" -cert "${ISSUING_CA_CERTIFICATE}" -passin file:"${ISSUING_CA_KEY_PASSWORD}" -keyfile "${ISSUING_CA_KEY}" -out "${RATOKEN_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
-	openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_issuing_extensions -batch -days ${SDAYS} -in "${RATOKEN_REQUEST}" -cert "${ISSUING_CA_CERTIFICATE}" -passin file:"${ISSUING_CA_KEY_PASSWORD}" -keyfile "${ISSUING_CA_KEY}" -out "${RATOKEN_CERTIFICATE}"
+	echo "openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_ratoken_extensions -batch -days ${SDAYS} -in "${RATOKEN_REQUEST}" -cert "${ISSUING_CA_CERTIFICATE}" -passin file:"${ISSUING_CA_KEY_PASSWORD}" -keyfile "${ISSUING_CA_KEY}" -out "${RATOKEN_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
+	openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_ratoken_extensions -batch -days ${SDAYS} -in "${RATOKEN_REQUEST}" -cert "${ISSUING_CA_CERTIFICATE}" -passin file:"${ISSUING_CA_KEY_PASSWORD}" -keyfile "${ISSUING_CA_KEY}" -out "${RATOKEN_CERTIFICATE}"
 	echo "done."
 	fi
 fi;
@@ -1195,9 +1195,11 @@ openxpkiadm_dv () {
 echo -e "\nImporting Datavault Certificate: ${DATAVAULT_CERTIFICATE}"
 echo "openxpkiadm certificate import --file "${DATAVAULT_CERTIFICATE}"" >> openxpkiadmCommands.txt
 openxpkiadm certificate import --file "${DATAVAULT_CERTIFICATE}"
+openxpkictl start
+sleep 5;
 echo -e "\nRegistering Datavault Certificate ${DATAVAULT_CERTIFICATE} as datasafe token.."
 echo "openxpkiadm alias --file "${DATAVAULT_CERTIFICATE}" --realm "${REALM}" --token datasafe" >> openxpkiadmCommands.txt
-openxpkiadm alias --realm "${REALM}" --token datasafe --file "${DATAVAULT_CERTIFICATE}" --key /etc/openxpki/local/keys/vault-1.pem
+openxpkiadm alias --realm "${REALM}" --token datasafe --file "${DATAVAULT_CERTIFICATE}" --key /etc/openxpki/local/keys/${REALM}/vault-1.pem
 sleep 1;
 }
 
@@ -1261,7 +1263,7 @@ if [ $import_xpki_Root == "1" ] || [ $import_xpki_DV == "1" ]; then
 echo "Stopping OpenXPKI if it's running.."
 if pgrep "openxpki" > /dev/null
 then
-    openxpkictl start
+    openxpkictl stop
 fi
 fi
 if [ $import_xpki_Root == "1" ]; then
