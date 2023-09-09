@@ -923,10 +923,10 @@ cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u root 
 
 ## Extra encryption keys for sessions
 ## Generate the PEM, remove the BEGIN and END lines, and then remove the new lines
-mkdir -p ${BASE_DIR}/tmp
+mkdir -p ${BASE_DIR}/tmp/${REALM}
 `openssl ecparam -name prime256v1 -genkey -noout -out ${BASE_DIR}/tmp/cgi_session_enc_key.key`
-`openssl ec -in ${BASE_DIR}/tmp/cgi_session_enc_key.key -pubout -out ${BASE_DIR}/tmp/cgi_session_enc_pub.pem`
-cgi_session_enc_key=`cat ${BASE_DIR}/tmp/cgi_session_enc_key.key |  sed '1,1d;$ d' | tr -d '\r\n'`
+`openssl ec -in ${BASE_DIR}/tmp/cgi_session_enc_key.key -pubout -out ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_pub.pem`
+`cat ${BASE_DIR}/tmp/cgi_session_enc_key.key |  sed '1,1d;$ d' | tr -d '\r\n'` >> ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_pub.txt
 cgi_session_enc_pub=`cat ${BASE_DIR}/tmp/cgi_session_enc_pub.pem |  sed '1,1d;$ d' | tr -d '\r\n'`
 #Tested output
 # echo ${cgi_session_enc_key}
@@ -1292,6 +1292,78 @@ openxpkiadm_ratoken () {
 echo "openxpkiadm alias --token cmcra --file "${RATOKEN_CERTIFICATE}" --realm "${REALM}" --key "${RATOKEN_KEY}"" >> ${BASE_DIR}/ca/"${REALM}"/openxpkiadmCommands.txt
 openxpkiadm alias --token cmcra --file "${RATOKEN_CERTIFICATE}" --realm "${REALM}" --key "${RATOKEN_KEY}"
 echo -e "Done.\n"
+}
+
+update_default_configs () {
+echo "Updating some of the default configuration files to include the values of your install variables"
+mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml to "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml.bak
+echo "
+# Those stacks are usually required so you should not remove them
+Anonymous:
+    type: Anonymous
+    label: Anonymous
+
+System:
+    type: Anonymous
+    role: System
+
+# Using the default config this allows a user login with ANY certificate
+# issued by the ${REALM} which has the client auth keyUsage bit set
+# the commonName is used as username!
+Certificate:
+    type: ClientX509
+    role: User
+    arg: CN
+    trust_anchor:
+        realm: ${REALM}
+
+# Read the userdata from a YAML file defined in auth/connector.yaml
+LocalPassword:
+    type: Password
+    user@: connector:auth.connector.userdb
+" >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml
+
+mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml to "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml.bak
+echo "
+# Regular login for users via an external password database defined
+# in handler.yaml as "LocalPassword"
+LocalPassword:
+    label: User Login
+    description: Login with username and password
+    handler: LocalPassword
+    type: passwd
+
+# Login with a client certificate, needs to be setup on the webserver
+Certificate:
+    label: Client certificate
+    description: Login using a client certificate
+    handler: Certificate
+    type: x509
+    sign:
+    key: `echo ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_pub.txt`
+
+# The default handler for automated interfaces, hidden from the UI
+_System:
+    handler: System
+" >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml
+
+mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/roles.yaml to "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/roles.yaml.bak
+echo "
+User:
+    label: User
+
+# operator personel
+RA Operator:
+    label: RA Operator
+
+# operator with ca key access
+CA Operator:
+    label: CA Operator
+
+# system user, anything which is running on the shell
+System:
+    label: System
+" >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/roles.yaml
 }
 
 apache2_setup () {
