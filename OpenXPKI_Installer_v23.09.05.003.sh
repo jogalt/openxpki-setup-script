@@ -407,6 +407,8 @@ define_openssl () {
 ##Dev
 BITS="2048"
 DVBITS="2048"
+RABITS="2048"
+SCEPBITS="2048"
 ##Prod
 #BITS="8192"
 #DVBITS="16384" # Customizing Datavault bits for experimenting
@@ -480,7 +482,7 @@ stateOrProvinceName_default     = "${STATE}"
 countryName             = match
 stateOrProvinceName	    = supplied
 localityName            = supplied
-organizationName        = match
+organizationName        = optional
 organizationalUnitName	= supplied
 commonName		        = supplied
 emailAddress	       	= supplied
@@ -674,7 +676,7 @@ then
    make_password "${RATOKEN_KEY_PASSWORD}"
    echo -e "\nRATOKEN Request" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
    echo -e "openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_ratoken_extensions -batch -newkey rsa:$BITS -passout file:"${RATOKEN_KEY_PASSWORD}" -keyout "${RATOKEN_KEY}" -subj "${RATOKEN_SUBJECT}" -out "${RATOKEN_REQUEST}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
-   openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_ratoken_extensions -batch -newkey rsa:$BITS -passout file:"${RATOKEN_KEY_PASSWORD}" -keyout "${RATOKEN_KEY}" -subj "${RATOKEN_SUBJECT}" -out "${RATOKEN_REQUEST}"
+   openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_ratoken_extensions -batch -newkey rsa:$RABITS -passout file:"${RATOKEN_KEY_PASSWORD}" -keyout "${RATOKEN_KEY}" -subj "${RATOKEN_SUBJECT}" -out "${RATOKEN_REQUEST}"
    echo "done."
 	directory="${BASE_DIR}/ca/"${REALM}"/"
 	if ls ${BASE_DIR}/ca/${REALM}/*[Ii][Nn][Tt][Ee][Rr]*.crt &> /dev/null
@@ -709,7 +711,7 @@ then
    make_password "${SCEP_KEY_PASSWORD}"
    echo -e "\nSCEP Request" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
    echo -e "openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_scep_reqexts -batch -newkey rsa:$BITS -passout file:"${SCEP_KEY_PASSWORD}" -keyout "${SCEP_KEY}" -subj "${SCEP_SUBJECT}" -out "${SCEP_REQUEST}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
-   openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_scep_reqexts -batch -newkey rsa:$BITS -passout file:"${SCEP_KEY_PASSWORD}" -keyout "${SCEP_KEY}" -subj "${SCEP_SUBJECT}" -out "${SCEP_REQUEST}"
+   openssl req -verbose -config "${OPENSSL_CONF}" -reqexts v3_scep_reqexts -batch -newkey rsa:$SCEPBITS -passout file:"${SCEP_KEY_PASSWORD}" -keyout "${SCEP_KEY}" -subj "${SCEP_SUBJECT}" -out "${SCEP_REQUEST}"
    echo "done."
 	directory="${BASE_DIR}/ca/"${REALM}"/"
 	if ls ${BASE_DIR}/ca/${REALM}/*[Ii][Nn][Tt][Ee][Rr]*.crt &> /dev/null
