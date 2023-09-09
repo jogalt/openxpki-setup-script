@@ -923,15 +923,14 @@ cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u root 
 
 ## Extra encryption keys for sessions
 ## Generate the PEM, remove the BEGIN and END lines, and then remove the new lines
-mkdir -p ${BASE_DIR}/tmp/${REALM}
+mkdir -p ${BASE_DIR}/tmp
 `openssl ecparam -name prime256v1 -genkey -noout -out ${BASE_DIR}/tmp/cgi_session_enc_key.key`
 `openssl ec -in ${BASE_DIR}/tmp/cgi_session_enc_key.key -pubout -out ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_pub.pem`
-`cat ${BASE_DIR}/tmp/cgi_session_enc_key.key |  sed '1,1d;$ d' | tr -d '\r\n'` >> ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_pub.txt
-cgi_session_enc_pub=`cat ${BASE_DIR}/tmp/cgi_session_enc_pub.pem |  sed '1,1d;$ d' | tr -d '\r\n'`
-#Tested output
-# echo ${cgi_session_enc_key}
-# echo ${cgi_session_enc_pub}
+v_cgi_session_enc_key=`(${BASE_DIR}/tmp/cgi_session_enc_key.key | sed '1,1d;$ d' | tr -d '\r\n')`
+v_cgi_session_enc_pub=`(${BASE_DIR}/tmp/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
+
 cgi_session_cookie=`openssl rand 50 | base64`
+db_session_enc_key=`openssl rand 50 | base64`
 mv ${BASE_DIR}/webui/default.conf ${BASE_DIR}/webui/default.conf.bak
 
 echo "
@@ -960,7 +959,7 @@ NameSpace = "${input_db_name}"
 DataSource = dbi:MariaDB:dbname="${input_db_name}"
 User = "${cgi_session_db_user}"
 Password = "${cgi_session_db_pass}"
-EncryptKey = "${cgi_session_enc_key}"
+EncryptKey = "${db_session_enc_key}"
 LogIP = 1
 LongReadLen = 100000
 
@@ -972,7 +971,7 @@ LongReadLen = 100000
 # Create the key using "openssl ecparam -name secp256r1 -genkey -noout"
 # Put the public key into auth/stack.yaml where required
 [auth]
-sign.key="${cgi_session_enc_key}"
+sign.key="${v_cgi_session_enc_key}"
 
 # those headers are added to all http responses
 [header]
@@ -1324,6 +1323,7 @@ LocalPassword:
 " >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml
 
 mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml to "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml.bak
+v_cgi_session_enc_pub=`(${BASE_DIR}/tmp/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
 echo "
 # Regular login for users via an external password database defined
 # in handler.yaml as "LocalPassword"
@@ -1340,7 +1340,7 @@ Certificate:
     handler: Certificate
     type: x509
     sign:
-    key: `echo ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_pub.txt`
+    key: ${v_cgi_session_enc_pub}
 
 # The default handler for automated interfaces, hidden from the UI
 _System:
@@ -1402,13 +1402,13 @@ update-ca-certificates
 
 import_certificates () {
 openxpkictl start
-if [ $import_xpki_Root == "1" ] || [ $import_xpki_DV == "1" ]; then
+#if [ $import_xpki_Root == "1" ] || [ $import_xpki_DV == "1" ]; then
 # echo "Stopping OpenXPKI if it's running.."
 # if pgrep "openxpki" > /dev/null
 # then
     # openxpkictl stop
 # fi
-fi
+#fi
 if [ $import_xpki_Root == "1" ]; then
     openxpkiadm_root
 fi
