@@ -601,7 +601,7 @@ then
    openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_ca_extensions -batch -x509 -newkey rsa:$BITS -days ${RDAYS} -passout file:"${ROOT_CA_KEY_PASSWORD}" -keyout "${ROOT_CA_KEY}" -subj "${ROOT_CA_SUBJECT}" -out "${ROOT_CA_CERTIFICATE}"
    echo "Putting the certificate commands into certificateCommands.txt"
    echo "Putting the certificate commands into certificateCommands.txt" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
-   echo "openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_ca_extensions -batch -x509 -newkey rsa:$BITS -days ${RDAYS} -passout file:"${ROOT_CA_KEY_PASSWORD}" -keyout "${ROOT_CA_KEY}" -subj "${ROOT_CA_SUBJECT}" -out "${ROOT_CA_CERTIFICATE}"" >> certificateCommands.txt
+   echo "openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_ca_extensions -batch -x509 -newkey rsa:$BITS -days ${RDAYS} -passout file:"${ROOT_CA_KEY_PASSWORD}" -keyout "${ROOT_CA_KEY}" -subj "${ROOT_CA_SUBJECT}" -out "${ROOT_CA_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
    echo "Done."
 fi;
 }
@@ -841,7 +841,7 @@ echo -e "\nInstalling and enablig Apache mods"
 apt install apache2 libapache2-mod-fcgid
 a2enmod fcgid
 
-##Install OpenXPKI
+##Install OpenXPKI dependencies
 echo "Beginning OpenXPKI installation."
 apt install libopenxpki-perl openxpki-cgi-session-driver openxpki-i18n 
 echo "Showing installed OpenXPKI version."
@@ -872,7 +872,7 @@ input_db_name="openxpki"
 input_db_user="openxpki"
 #    echo -e "What's the password for the database?\n"
 #    read input_db_pass
-input_db_pass=`openssl rand 40 | base64`
+input_db_pass=`openssl rand 50 | base64`
     echo -e "Your database will be configured with the following settings:\n"
     echo "Database name: ""${input_db_name}"
     echo "Database user: ""${input_db_user}"
@@ -904,7 +904,14 @@ echo "Database: ""${input_db_name}"  "created."
 sudo mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'localhost' IDENTIFIED BY '"${input_db_pass}"';"
 echo "User: ""${input_db_user}"  "created."
 sudo mysql -u root -p"${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'localhost';"
+cgi_session_db_pass=`openssl rand 50 | base64`
+cgi_session_db_user="openxpki_session_user"
 echo "Granting permissions on ""${input_db_name}" "to: ""${input_db_user}"
+echo "Making additional db login user for the webui CGI session"
+echo "using the following commands"
+echo "CREATE USER ${cgi_session_db_user}"
+echo "GRANT SELECT, INSERT, UPDATE, DELETE ON openxpki.frontend_session TO '"${cgi_session_db_user}"'@'localhost'"
+sudo mysql -u root -p"${ROOT_PW}" -e "CREATE USER '"${cgi_session_db_user}"'@'localhost' IDENTIFIED BY '"${cgi_session_db_pass}"';"
 sudo mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
 DATABASE_DIR="${BASE_DIR}/config.d/system/database.yaml"
 sed -i "s^name:.*^name: ${input_db_name}^g" ${DATABASE_DIR}
@@ -913,6 +920,73 @@ sed -i "s^passwd:.*^passwd: ${input_db_pass}^g" ${DATABASE_DIR}
 fi
 echo "Copying database template to Server."
 cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u root -p"${ROOT_PW}" --database  "${input_db_name}"
+
+## Extra encryption keys for sessions
+## Generate the PEM, remove the BEGIN and END lines, and then remove the new lines
+mkdir -p ${BASE_DIR}/tmp
+`openssl ecparam -name prime256v1 -genkey -noout -out ${BASE_DIR}/tmp/cgi_session_enc_key.key`
+`openssl ec -in ${BASE_DIR}/tmp/cgi_session_enc_key.key -pubout -out ${BASE_DIR}/tmp/cgi_session_enc_pub.pem`
+cgi_session_enc_key=`cat ${BASE_DIR}/tmp/cgi_session_enc_key.key |  sed '1,1d;$ d' | tr -d '\r\n'`
+cgi_session_enc_pub=`cat ${BASE_DIR}/tmp/cgi_session_enc_pub.pem |  sed '1,1d;$ d' | tr -d '\r\n'`
+#Tested output
+# echo ${cgi_session_enc_key}
+# echo ${cgi_session_enc_pub}
+cgi_session_cookie=`openssl rand 50 | base64`
+mv ${BASE_DIR}/webui/default.conf ${BASE_DIR}/webui/default.conf.bak
+
+echo "
+# Redirect to an external page
+# loginurl = login.html
+realm_mode = select
+locale_directory: /usr/share/locale/
+default_language: en_US
+
+[logger]
+log_level = INFO
+
+[session]
+driver = driver:openxpki
+timeout = +10m
+ip_match = 1
+fingerprint = HTTP_ACCEPT_ENCODING, HTTP_USER_AGENT, HTTP_ACCEPT_LANGUAGE, REMOTE_USER, SSL_CLIENT_CERT
+cookey = "${cgi_session_cookie}"
+
+[session_driver]
+Directory = /tmp
+
+# CREATE USER 'openxpki_session'@'localhost' IDENTIFIED BY 'mysecret';
+# GRANT SELECT, INSERT, UPDATE, DELETE ON openxpki.frontend_session TO 'openxpki_session'@'localhost';
+NameSpace = "${input_db_name}"
+DataSource = dbi:MariaDB:dbname="${input_db_name}"
+User = "${cgi_session_db_user}"
+Password = "${cgi_session_db_pass}"
+EncryptKey = "${cgi_session_enc_key}"
+LogIP = 1
+LongReadLen = 100000
+
+[realm]
+
+#[login]
+
+# This key is used to sign non-password auth requests -
+# Create the key using "openssl ecparam -name secp256r1 -genkey -noout"
+# Put the public key into auth/stack.yaml where required
+[auth]
+sign.key="${cgi_session_enc_key}"
+
+# those headers are added to all http responses
+[header]
+Strict-Transport-Security = max-age=31536000;
+X-Frame-Options = SAMEORIGIN;
+X-XSS-Protection = 1; mode=block;
+
+# Authentication settings used for e.g. public access scripts
+# where no user login is required, by default Anonymous is used
+#[auth]
+#stack = _System
+" >> ${BASE_DIR}/webui/custom.conf
+
+
 }
 
 transfer_keys_files () {
@@ -1029,7 +1103,7 @@ token:
 
   vault:
     inherit: default
-    key: /etc/openxpki/local/keys/vault-1.pem
+    key: ${vault_dir}${REALM}/vault-1.pem
     secret: vault
 
   ca-signer:
@@ -1182,45 +1256,41 @@ fi
 openxpkiadm_root () {
 # Importing Root CA
 echo -e "\nImporting Root Certificate.."
-echo "openxpkiadm certificate import --file "${ROOT_CA_CERTIFICATE}" --realm "${REALM}"" >> openxpkiadmCommands.txt
-openxpkiadm certificate import --file "${ROOT_CA_CERTIFICATE}" --realm "${REALM}"
+echo "openxpkiadm alias --token root --file "${ROOT_CA_CERTIFICATE}" --realm "${REALM}"" >> ${BASE_DIR}/ca/"${REALM}"/openxpkiadmCommands.txt
+openxpkiadm alias --token root --file "${ROOT_CA_CERTIFICATE}" --realm "${REALM}"
 }
 
 openxpkiadm_dv () {
 # Importing Datavault
-# Should look at grep'ing output of the openxpkiadm list command to see if the DV key is present before importing another.
-# Can turn this into a "Require user input" option. Use in tandem with Case we're building above for generating certs.
-# Can echo value into a variable for each case choice and run the openxpkictl commands if the values are/aren't present.
-# This can also apply to copying over the Datavault key to a new location.
 echo -e "\nImporting Datavault Certificate: ${DATAVAULT_CERTIFICATE}"
-echo "openxpkiadm certificate import --file "${DATAVAULT_CERTIFICATE}"" >> openxpkiadmCommands.txt
-openxpkiadm certificate import --file "${DATAVAULT_CERTIFICATE}"
-openxpkictl start
+echo "openxpkiadm certificate import --file "${DATAVAULT_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/openxpkiadmCommands.txt
+openxpkiadm openxpkiadm alias --token datasafe --file "${DATAVAULT_CERTIFICATE}" --key "${vault_dir}${REALM}"/vault-1.pem --realm "${REALM}"
+# openxpkictl start
 sleep 5;
-echo -e "\nRegistering Datavault Certificate ${DATAVAULT_CERTIFICATE} as datasafe token.."
-echo "openxpkiadm alias --file "${DATAVAULT_CERTIFICATE}" --realm "${REALM}" --token datasafe" >> openxpkiadmCommands.txt
-openxpkiadm alias --realm "${REALM}" --token datasafe --file "${DATAVAULT_CERTIFICATE}" --key /etc/openxpki/local/keys/${REALM}/vault-1.pem
+# echo -e "\nRegistering Datavault Certificate ${DATAVAULT_CERTIFICATE} as datasafe token.."
+# echo "openxpkiadm alias --file "${DATAVAULT_CERTIFICATE}" --realm "${REALM}" --token datasafe" >> openxpkiadmCommands.txt
+# openxpkiadm alias --realm "${REALM}" --token datasafe --file "${DATAVAULT_CERTIFICATE}" --key /etc/openxpki/local/keys/${REALM}/vault-1.pem
 sleep 1;
 }
 
 # Keys NEED to be added to keys directory before these commands happen or the import fails
 openxpkiadm_issue () {
 echo "Importing Intermediate Certificate and put key in keys directory.."
-echo "openxpkiadm alias --file "${ISSUING_CA_CERTIFICATE}" --realm "${REALM}" --token certsign --key ${ISSUING_CA_KEY}" >> openxpkiadmCommands.txt
-openxpkiadm alias --file "${ISSUING_CA_CERTIFICATE}" --realm "${REALM}" --token certsign --key ${ISSUING_CA_KEY}
+echo "openxpkiadm alias --token certsign --file "${ISSUING_CA_CERTIFICATE}" --realm "${REALM}" --key "${ISSUING_CA_KEY}"" >> ${BASE_DIR}/ca/"${REALM}"/openxpkiadmCommands.txt
+openxpkiadm alias --token certsign --file "${ISSUING_CA_CERTIFICATE}" --realm "${REALM}" --key "${ISSUING_CA_KEY}"
 }
 
 # Keys NEED to be added to keys directory before these commands happen or the import fails
 openxpkiadm_scep () {
-echo "openxpkiadm alias --file "${SCEP_CERTIFICATE}" --realm "${REALM}" --token scep  --key "${SCEP_KEY}"" >> openxpkiadmCommands.txt
-openxpkiadm alias --file "${SCEP_CERTIFICATE}" --realm "${REALM}" --token scep  --key "${SCEP_KEY}"
+echo "openxpkiadm alias --token scep --file "${SCEP_CERTIFICATE}" --realm "${REALM}"  --key "${SCEP_KEY}"" >> ${BASE_DIR}/ca/"${REALM}"/openxpkiadmCommands.txt
+openxpkiadm alias --token scep --file "${SCEP_CERTIFICATE}" --realm "${REALM}"  --key "${SCEP_KEY}"
 echo -e "Done.\n"
 }
 
 # Keys NEED to be added to keys directory before these commands happen or the import fails
 openxpkiadm_ratoken () {
-echo "openxpkiadm alias --file "${RATOKEN_CERTIFICATE}" --realm "${REALM}" --token ratoken  --key "${RATOKEN_KEY}"" >> openxpkiadmCommands.txt
-openxpkiadm alias --file "${RATOKEN_CERTIFICATE}" --realm "${REALM}" --token cmcra  --key "${RATOKEN_KEY}"
+echo "openxpkiadm alias --token cmcra --file "${RATOKEN_CERTIFICATE}" --realm "${REALM}" --key "${RATOKEN_KEY}"" >> ${BASE_DIR}/ca/"${REALM}"/openxpkiadmCommands.txt
+openxpkiadm alias --token cmcra --file "${RATOKEN_CERTIFICATE}" --realm "${REALM}" --key "${RATOKEN_KEY}"
 echo -e "Done.\n"
 }
 
@@ -1259,12 +1329,13 @@ update-ca-certificates
 }
 
 import_certificates () {
+openxpkictl start
 if [ $import_xpki_Root == "1" ] || [ $import_xpki_DV == "1" ]; then
-echo "Stopping OpenXPKI if it's running.."
-if pgrep "openxpki" > /dev/null
-then
-    openxpkictl stop
-fi
+# echo "Stopping OpenXPKI if it's running.."
+# if pgrep "openxpki" > /dev/null
+# then
+    # openxpkictl stop
+# fi
 fi
 if [ $import_xpki_Root == "1" ]; then
     openxpkiadm_root
@@ -1274,8 +1345,8 @@ if [ $import_xpki_DV == "1" ]; then
 fi
 
 # Start OpenX before importing the tokens
-echo -e "\nStarting server before running import ... "
-openxpkictl start
+# echo -e "\nStarting server before running import ... "
+# openxpkictl start
 
 if [ $import_xpki_Inter == "1" ]; then
    openxpkiadm_issue
