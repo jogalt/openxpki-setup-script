@@ -924,10 +924,11 @@ cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u root 
 ## Extra encryption keys for sessions
 ## Generate the PEM, remove the BEGIN and END lines, and then remove the new lines
 mkdir -p ${BASE_DIR}/tmp
+BASE_DIR=/root
 `openssl ecparam -name prime256v1 -genkey -noout -out ${BASE_DIR}/tmp/cgi_session_enc_key.key`
 `openssl ec -in ${BASE_DIR}/tmp/cgi_session_enc_key.key -pubout -out ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_pub.pem`
-v_cgi_session_enc_key=`(${BASE_DIR}/tmp/cgi_session_enc_key.key | sed '1,1d;$ d' | tr -d '\r\n')`
-v_cgi_session_enc_pub=`(${BASE_DIR}/tmp/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
+v_cgi_session_enc_key=`(cat ${BASE_DIR}/tmp/cgi_session_enc_key.key | sed '1,1d;$ d' | tr -d '\r\n')`
+v_cgi_session_enc_pub=`(cat ${BASE_DIR}/tmp/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
 
 cgi_session_cookie=`openssl rand 50 | base64`
 db_session_enc_key=`openssl rand 50 | base64`
