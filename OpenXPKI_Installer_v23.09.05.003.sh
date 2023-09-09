@@ -1262,8 +1262,8 @@ openxpkiadm alias --token root --file "${ROOT_CA_CERTIFICATE}" --realm "${REALM}
 openxpkiadm_dv () {
 # Importing Datavault
 echo -e "\nImporting Datavault Certificate: ${DATAVAULT_CERTIFICATE}"
-echo "openxpkiadm certificate import --file "${DATAVAULT_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/openxpkiadmCommands.txt
-openxpkiadm openxpkiadm alias --token datasafe --file "${DATAVAULT_CERTIFICATE}" --key "${vault_dir}${REALM}"/vault-1.pem --realm "${REALM}"
+echo "openxpkiadm alias --token datasafe --file "${DATAVAULT_CERTIFICATE}" --key "${vault_dir}${REALM}"/vault-1.pem --realm "${REALM}"" >> ${BASE_DIR}/ca/"${REALM}"/openxpkiadmCommands.txt
+openxpkiadm alias --token datasafe --file "${DATAVAULT_CERTIFICATE}" --key "${vault_dir}${REALM}"/vault-1.pem --realm "${REALM}"
 # openxpkictl start
 sleep 5;
 # echo -e "\nRegistering Datavault Certificate ${DATAVAULT_CERTIFICATE} as datasafe token.."
