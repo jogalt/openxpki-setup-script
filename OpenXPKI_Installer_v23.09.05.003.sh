@@ -912,6 +912,7 @@ echo "using the following commands"
 echo "CREATE USER ${cgi_session_db_user}"
 echo "GRANT SELECT, INSERT, UPDATE, DELETE ON openxpki.frontend_session TO '"${cgi_session_db_user}"'@'localhost'"
 sudo mysql -u root -p"${ROOT_PW}" -e "CREATE USER '"${cgi_session_db_user}"'@'localhost' IDENTIFIED BY '"${cgi_session_db_pass}"';"
+sudo mysql -u root -p"${ROOT_PW}" -e "GRANT SELECT, INSERT, UPDATE, DELETE ON "${input_db_name}".frontend_session TO '"${cgi_session_db_user}"'@'localhost';"
 sudo mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
 DATABASE_DIR="${BASE_DIR}/config.d/system/database.yaml"
 sed -i "s^name:.*^name: ${input_db_name}^g" ${DATABASE_DIR}
@@ -934,8 +935,10 @@ db_session_enc_key=`openssl rand 50 | base64`
 mv ${BASE_DIR}/webui/default.conf ${BASE_DIR}/webui/default.conf.bak
 
 echo "
-# Redirect to an external page
-# loginurl = login.html
+[global]
+socket = /var/openxpki/openxpki.socket
+scripturl = cgi-bin/webui.fcgi
+
 realm_mode = select
 locale_directory: /usr/share/locale/
 default_language: en_US
@@ -981,9 +984,9 @@ X-XSS-Protection = 1; mode=block;
 
 # Authentication settings used for e.g. public access scripts
 # where no user login is required, by default Anonymous is used
-#[auth]
-#stack = _System
-" >> ${BASE_DIR}/webui/custom.conf
+[auth]
+stack = _System
+" >> ${BASE_DIR}/webui/default.conf
 
 
 }
@@ -1070,7 +1073,7 @@ echo "Done modifying folder and file permissions."
 #### Modify the new realm crypto.yaml file with new variables
 #echo "REALM_YAML="${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml"" #debug
 REALM_YAML="${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml"
-
+mv "${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml" "${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml.bak"
 # Copy our crypto template to the realm's crypto.yaml file
 echo "
 type:
@@ -1083,7 +1086,6 @@ type:
 token:
   default:
     backend: OpenXPKI::Crypto::Backend::OpenSSL
-    key: /etc/openxpki/local/keys/[% PKI_REALM %]/[% ALIAS %].pem
 
     # possible values are OpenSSL, nCipher, LunaCA
     engine: OpenSSL
@@ -1107,19 +1109,19 @@ token:
 
   ca-signer:
     inherit: default
-    key_store: DATAPOOL
+    key_store: OPENXPKI
     key: ${vault_dir}${REALM}/${ISSUING_CA}.pem
     secret: ca-signer
 
   ratoken:
     inherit: default
-    key_store: DATAPOOL
+    key_store: OPENXPKI
     key: ${vault_dir}${REALM}/${RATOKEN}.pem
     secret: ratoken
 
   scep:
     inherit: default
-    key_store: DATAPOOL
+    key_store: OPENXPKI
     key: ${vault_dir}${REALM}/${SCEP}.pem
     secret: scep
 
@@ -1371,6 +1373,8 @@ apache2_setup () {
 a2enmod ssl rewrite headers
 a2ensite openxpki
 a2dissite 000-default default-ssl
+#Configure download permissions
+chmod -R 755 /var/www/download/
 
 # if you're regenerating SSL Keys, then you need to delete this chain folder, or edit this if to include some user input
 if [ ! -e "${BASE_DIR}/tls/chain" ]; then
@@ -1547,6 +1551,7 @@ Create_Realm)							## First_run
  echo "Certificates created, Continuing"
  transfer_keys_files
  import_certificates
+ update_default_configs
 ## openx command
  break
  ;;
