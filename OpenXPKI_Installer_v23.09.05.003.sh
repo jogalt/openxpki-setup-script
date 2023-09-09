@@ -874,7 +874,7 @@ input_db_name="openxpki"
 input_db_user="openxpki"
 #    echo -e "What's the password for the database?\n"
 #    read input_db_pass
-input_db_pass=`openssl rand 50 | base64`
+    make_password "${input_db_pass}"
     echo -e "Your database will be configured with the following settings:\n"
     echo "Database name: ""${input_db_name}"
     echo "Database user: ""${input_db_user}"
@@ -906,7 +906,7 @@ echo "Database: ""${input_db_name}"  "created."
 sudo mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'localhost' IDENTIFIED BY '"${input_db_pass}"';"
 echo "User: ""${input_db_user}"  "created."
 sudo mysql -u root -p"${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'localhost';"
-cgi_session_db_pass=`openssl rand 50 | base64`
+make_password "${cgi_session_db_pass}"
 cgi_session_db_user="openxpki_session_user"
 echo "Granting permissions on ""${input_db_name}" "to: ""${input_db_user}"
 echo "Making additional db login user for the webui CGI session"
@@ -932,8 +932,8 @@ mkdir -p ${BASE_DIR}/tmp
 v_cgi_session_enc_key=`(cat ${BASE_DIR}/tmp/cgi_session_enc_key.key | sed '1,1d;$ d' | tr -d '\r\n')`
 v_cgi_session_enc_pub=`(cat ${BASE_DIR}/tmp/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
 
-cgi_session_cookie=`openssl rand 50 | base64`
-db_session_enc_key=`openssl rand 50 | base64`
+make_password "${cgi_session_cookie}"
+make_password "${db_session_enc_key}"
 mv ${BASE_DIR}/webui/default.conf ${BASE_DIR}/webui/default.conf.bak
 
 echo "
