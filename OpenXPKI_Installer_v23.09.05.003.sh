@@ -1727,38 +1727,3 @@ Quit)
   ;;
 esac
 done
-
-
-
-
-
-
-
-FROM debian:12
-MAINTAINER jogalt
-RUN apt update && apt upgrade -y
-RUN apt install wget -y
-RUN apt install gnupg* -y
-RUN apt install apache2 -y
-RUN apt install libapache2-mod-fcgid
-RUN a2enmod fcgid
-RUN apt install mariadb-server -y
-RUN apt install libdbd-mariadb-perl -y
-RUN apt install libdbd-mysql-perl -y
-RUN apt install chrony -y
-#USER root
-#RUN apt-key adv --no-tty --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 8F7B8EC1D616E831
-#USER nonroot
-#RUN gpg --batch --keyring /usr/share/keyrings/openxpki.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 8F7B8EC1D616E831
-#RUN wget -O- https://packages.openxpki.org/v3/debian/Release.key | tee /usr/share/keyrings/openxpki.gpg
-RUN wget https://packages.openxpki.org/v3/debian/Release.key
-RUN apt-key add Release.key
-RUN echo "Types: deb" >> /etc/apt/sources.list.d/openxpki.sources
-RUN echo "URIs: https://packages.openxpki.org/v3/bookworm/" >> /etc/apt/sources.list.d/openxpki.sources
-RUN echo "Suites: bookworm" >> /etc/apt/sources.list.d/openxpki.sources
-RUN echo "Components: release" >> /etc/apt/sources.list.d/openxpki.sources
-RUN echo "Signed-By: /etc/apt/trusted.gpg" >> /etc/apt/sources.list.d/openxpki.sources
-RUN apt update
-RUN apt install libopenxpki-perl openxpki-cgi-session-driver openxpki-i18n -y
-WORKDIR /opt
-ENTRYPOINT ["/bin/sh"]
