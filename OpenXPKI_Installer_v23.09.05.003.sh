@@ -911,6 +911,10 @@ echo "User: ""${input_db_user}"  "created."
 echo "Granting permissions on ""${input_db_name}" "to: ""${input_db_user}"
 sudo mysql -u root -p"${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'localhost';"
 
+#Create database schema
+echo "Copying database template to Server."
+cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u root -p"${ROOT_PW}" --database  "${input_db_name}"
+
 #Store credentials in /etc/openxpki/config.d/system/database.yaml
 sed -i "s^name:.*^name: ${input_db_name}^g" ${DATABASE_DIR}
 sed -i "s^user:.*^user: ${input_db_user}^g" ${DATABASE_DIR}
@@ -925,14 +929,16 @@ echo "Granting permissions on ""${input_db_name}" "to: ""${input_db_user}"
 echo "Making additional db login user for the webui CGI session"
 echo "Using the following commands"
 echo "CREATE USER ${cgi_session_db_user}"
-echo "GRANT SELECT, INSERT, UPDATE, DELETE ON openxpki.frontend_session TO '"${cgi_session_db_user}"'@'localhost'"
 sudo mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS '"${cgi_session_db_user}"'@'localhost' IDENTIFIED BY '"${cgi_session_db_pass}"';"
+
+# Grant privileges to cgi user for frontend
+echo "GRANT SELECT, INSERT, UPDATE, DELETE ON openxpki.frontend_session TO '"${cgi_session_db_user}"'@'localhost'"
+
 sudo mysql -u root -p"${ROOT_PW}" -e "GRANT SELECT, INSERT, UPDATE, DELETE ON "${input_db_name}".frontend_session TO '"${cgi_session_db_user}"'@'localhost';"
+echo "sudo mysql -u root -p"${ROOT_PW}" -e "GRANT SELECT, INSERT, UPDATE, DELETE ON "${input_db_name}".frontend_session TO '"${cgi_session_db_user}"'@'localhost';""
 sudo mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
 
 fi
-echo "Copying database template to Server."
-cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u root -p"${ROOT_PW}" --database  "${input_db_name}"
 
 ## Extra encryption keys for sessions
 ## Generate the PEM, remove the BEGIN and END lines, and then remove the new lines
