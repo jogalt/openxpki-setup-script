@@ -946,6 +946,7 @@ cgi_session_cookie=`openssl rand 50 | base64`
 db_session_enc_key=`openssl rand 50 | base64`
 mv ${BASE_DIR}/webui/default.conf ${BASE_DIR}/webui/default.conf.bak
 
+#Need to add the tag here to check out version and not overwrite
 echo "
 [global]
 socket = /var/openxpki/openxpki.socket
