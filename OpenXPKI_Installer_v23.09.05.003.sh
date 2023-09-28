@@ -888,6 +888,9 @@ input_db_pass=`openssl rand 50 | base64`
     fi
 done
 
+# Define DB Directory
+DATABASE_DIR="${BASE_DIR}/config.d/system/database.yaml"
+
 echo "Beginning MariaDB Secure installation..."
 sudo mysql -u root -p"${ROOT_PW}" -e "SET PASSWORD FOR root@localhost = PASSWORD('"${ROOT_PW}"');FLUSH PRIVILEGES;"
 echo "Removing Anonymous user."
@@ -905,21 +908,28 @@ sudo mysql -u root -p"${ROOT_PW}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_
 echo "Database: ""${input_db_name}"  "created."
 sudo mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'localhost' IDENTIFIED BY '"${input_db_pass}"';"
 echo "User: ""${input_db_user}"  "created."
-sudo mysql -u root -p"${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'localhost';"
-cgi_session_db_pass=`openssl rand 50 | base64`
-cgi_session_db_user="openxpki_session_user"
 echo "Granting permissions on ""${input_db_name}" "to: ""${input_db_user}"
-echo "Making additional db login user for the webui CGI session"
-echo "using the following commands"
-echo "CREATE USER ${cgi_session_db_user}"
-echo "GRANT SELECT, INSERT, UPDATE, DELETE ON openxpki.frontend_session TO '"${cgi_session_db_user}"'@'localhost'"
-sudo mysql -u root -p"${ROOT_PW}" -e "CREATE USER '"${cgi_session_db_user}"'@'localhost' IDENTIFIED BY '"${cgi_session_db_pass}"';"
-sudo mysql -u root -p"${ROOT_PW}" -e "GRANT SELECT, INSERT, UPDATE, DELETE ON "${input_db_name}".frontend_session TO '"${cgi_session_db_user}"'@'localhost';"
-sudo mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
-DATABASE_DIR="${BASE_DIR}/config.d/system/database.yaml"
+sudo mysql -u root -p"${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'localhost';"
+
+#Store credentials in /etc/openxpki/config.d/system/database.yaml
 sed -i "s^name:.*^name: ${input_db_name}^g" ${DATABASE_DIR}
 sed -i "s^user:.*^user: ${input_db_user}^g" ${DATABASE_DIR}
 sed -i "s^passwd:.*^passwd: ${input_db_pass}^g" ${DATABASE_DIR}
+
+#Create cgi session credentials
+cgi_session_db_user="openxpki_cgiSession_user"
+cgi_session_db_pass=`openssl rand 50 | base64`
+
+#Create cgi session credentials for DB
+echo "Granting permissions on ""${input_db_name}" "to: ""${input_db_user}"
+echo "Making additional db login user for the webui CGI session"
+echo "Using the following commands"
+echo "CREATE USER ${cgi_session_db_user}"
+echo "GRANT SELECT, INSERT, UPDATE, DELETE ON openxpki.frontend_session TO '"${cgi_session_db_user}"'@'localhost'"
+sudo mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS '"${cgi_session_db_user}"'@'localhost' IDENTIFIED BY '"${cgi_session_db_pass}"';"
+sudo mysql -u root -p"${ROOT_PW}" -e "GRANT SELECT, INSERT, UPDATE, DELETE ON "${input_db_name}".frontend_session TO '"${cgi_session_db_user}"'@'localhost';"
+sudo mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
+
 fi
 echo "Copying database template to Server."
 cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u root -p"${ROOT_PW}" --database  "${input_db_name}"
