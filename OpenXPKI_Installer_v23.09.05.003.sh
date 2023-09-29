@@ -817,26 +817,44 @@ wget https://packages.openxpki.org/v3/debian/Release.key -O - | apt-key add -
 echo "Adding OpenXPKI to sources."
 echo -e "Types: deb\nURIs: https://packages.openxpki.org/v3/bookworm/\nSuites: bookworm\nComponents: release\nSigned-By: /usr/share/keyrings/openxpki.pgp" > /etc/apt/sources.list.d/openxpki.sources
 apt update
-PS3="Do you want to install MySQL or MariaDB?   "
-select db in MySQL MariaDB Exit; do
+PS3="Do you want to install MySQL, MariaDB or use an External Database?   "
+input_db_external=0
+input_db_external_auto=0
+select db in MySQL MariaDB External_MariaDB_Manual External_MariaDB_Automatic Exit; do
 
     case $db in
       MySQL)
-       apt install default-mysql-server libdbd-mysql-perl -y
-       echo "Selected MySQL as your DB Server."
-       break
-       ;;
+        apt install default-mysql-server libdbd-mysql-perl -y
+        echo "Selected MySQL as your DB Server."
+		input_db_external=0
+        break
+        ;;
       MariaDB)
-       apt install mariadb-server libdbd-mariadb-perl libdbd-mysql-perl -y
-       echo "Selected MariaDB as your DB Server."
-       break
-       ;;
+        apt install mariadb-server libdbd-mariadb-perl libdbd-mysql-perl -y
+        echo "Selected MariaDB as your DB Server."
+		input_db_external=0
+        break
+        ;;
+	  External_MariaDB_Manual)
+	    echo "Configure your external DB with the following parameters."
+	    echo ""
+		input_db_external=1
+		input_db_external_auto=0
+	    break
+	    ;;
+      External_MariaDB_Automatic)
+	    echo "Configure your external DB with the following parameters."
+	    echo ""
+		input_db_external=1
+		input_db_external_auto=1
+	    break
+	    ;;
       Exit)
-       echo "You've chose to end the installer."
-       exit 1
-       ;;
+        echo "You've chose to end the installer."
+        exit 1
+        ;;
       *)
-       echo "Invalid Selection."
+        echo "Invalid Selection."
     esac
 done
 echo -e "\nInstalling and enablig Apache mods"
@@ -850,12 +868,11 @@ echo "Showing installed OpenXPKI version."
 openxpkiadm version
 sleep 3
 
-echo "Do you want to automate the secure database initialization?"
-echo "We'll ask for your root password, the database name, user and password."
+echo ""
 echo "The details will be placed into the file:  ${BASE_DIR}/config.d/system/database.yaml"
-echo "    Y  |  y  "
-read input_secureDB
-if [ "${input_secureDB,,}" == "y" ] || [ "${input_secureDB,,}" == "yes" ]; then
+echo ""
+
+if [ $input_db_external == "0" ]; then
   echo "Please enter your root password."
   read -s input_rootpw_1
   echo "Please verify your root password."
@@ -943,6 +960,46 @@ sudo mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
 
 fi
 
+if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
+    
+	#Create credentials for external DB and show the user what to configure.
+
+	input_db_name="openxpki"
+    input_db_user="openxpki"
+	input_db_pass=`openssl rand 50 | base64`
+	cgi_session_db_user="openxpki_cgiSession_user"
+    cgi_session_db_pass=`openssl rand 50 | base64`
+	ROOT_PW="Enter_Root_Pass"
+	echo "Run these commands on your external database to prepare for operations."
+	echo ""
+	echo "sudo mysql -u root -p "${ROOT_PW}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;""
+	echo ""
+	echo "sudo mysql -u root -p "${ROOT_PW}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'localhost' IDENTIFIED BY '"${input_db_pass}"';""
+	echo ""
+	echo "sudo mysql -u root -p "${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'localhost';""
+	echo ""
+	echo "cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u root -p"${ROOT_PW}" --database  "${input_db_name}""
+	
+	#Store credentials in /etc/openxpki/config.d/system/database.yaml
+    sed -i "s^name:.*^name: ${input_db_name}^g" ${DATABASE_DIR}
+    sed -i "s^user:.*^user: ${input_db_user}^g" ${DATABASE_DIR}
+    sed -i "s^passwd:.*^passwd: ${input_db_pass}^g" ${DATABASE_DIR}
+	
+	#Create cgi session credentials for DB
+    echo ""
+    echo "Making additional db login user for the webui CGI session"
+    echo "This is a limited user that interacts with the cgiSession and helps prevent"
+    echo "Your admin database credentials potentially being exposed."
+    echo ""
+    echo "CREATE USER ${cgi_session_db_user}"
+    echo "sudo mysql -u root -p "${ROOT_PW}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'localhost' IDENTIFIED BY '"${cgi_session_db_pass}"';""
+
+    # Grant privileges to cgi user for frontend
+    echo "Granting SELECT, INSERT, UPDATE, DELETE ON on ""${input_db_name}".frontend_session "to: ""${cgi_session_db_user}"
+    echo "sudo mysql -u root -p "${ROOT_PW}" -e "GRANT SELECT, INSERT, UPDATE, DELETE ON "${input_db_name}".frontend_session TO "${cgi_session_db_user}"@'localhost';""
+    echo "sudo mysql -u root -p "${ROOT_PW}" -e "FLUSH PRIVILEGES;""
+	
+fi
 ## Extra encryption keys for sessions
 ## Generate the PEM, remove the BEGIN and END lines, and then remove the new lines
 mkdir -p ${BASE_DIR}/tmp
