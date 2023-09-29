@@ -829,12 +829,14 @@ select db in MySQL MariaDB External_MariaDB_Manual External_MariaDB_Automatic Ex
         apt install default-mysql-server libdbd-mysql-perl -y
         echo "Selected MySQL as your DB Server."
 		input_db_external=0
+		db_type="MariaDB"
         break
         ;;
       MariaDB)
         apt install mariadb-server libdbd-mariadb-perl libdbd-mysql-perl -y
         echo "Selected MariaDB as your DB Server."
 		input_db_external=0
+		db_type="MariaDB2"
         break
         ;;
 	  External_MariaDB_Manual)
@@ -842,6 +844,7 @@ select db in MySQL MariaDB External_MariaDB_Manual External_MariaDB_Automatic Ex
 	    echo ""
 		input_db_external=1
 		input_db_external_auto=0
+		db_type="MariaDB2"
 	    break
 	    ;;
       External_MariaDB_Automatic)
@@ -849,6 +852,7 @@ select db in MySQL MariaDB External_MariaDB_Manual External_MariaDB_Automatic Ex
 	    echo ""
 		input_db_external=1
 		input_db_external_auto=1
+		db_type="MariaDB2"
 	    break
 	    ;;
       Exit)
@@ -941,6 +945,7 @@ cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u root 
 sed -i "s^name:.*^name: ${input_db_name}^g" ${DATABASE_DIR}
 sed -i "s^user:.*^user: ${input_db_user}^g" ${DATABASE_DIR}
 sed -i "s^passwd:.*^passwd: ${input_db_pass}^g" ${DATABASE_DIR}
+sed -i "s^type:.*^type: ${db_type}^g" ${DATABASE_DIR}
 
 #Create cgi session credentials
 cgi_session_db_user="openxpki_cgiSession_user"
