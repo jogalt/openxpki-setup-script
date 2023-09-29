@@ -1017,6 +1017,60 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
 	echo ""
 	
 fi
+
+if [ $input_db_external == "1" ] && [ $input_db_external_auto == "1" ]; then
+    
+	debug=
+    debug=echo
+	
+	#Create credentials for external DB and show the user what to configure.
+    DATABASE_DIR="${BASE_DIR}/config.d/system/database.yaml"
+	input_db_name="openxpki"
+    input_db_user="openxpki"
+	input_db_pass=`openssl rand 50 | base64`
+	cgi_session_db_user="openxpki_cgiSession_user"
+    cgi_session_db_pass=`openssl rand 50 | base64`
+	echo "Enter remote database admin user"
+	read DB_ADMIN_USER
+	echo "Enter remote database admin password"
+	read DB_ADMIN_PASSWORD
+	echo "Enter the IP of the remote database"
+	read input_db_external_IP
+	echo "Enter the port of the remote database"
+	read input_db_external_Port
+	echo "Run these commands on your external database to prepare for operations."
+	echo ""
+	$debug mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;"
+	echo ""
+	$debug mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'%' IDENTIFIED BY '"${input_db_pass}"';"
+	echo ""
+	$debug mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'%';"
+	echo ""
+	cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" --database  "${input_db_name}"
+	
+	#Store credentials in /etc/openxpki/config.d/system/database.yaml
+    sed -i "s^name:.*^name: ${input_db_name}^g" ${DATABASE_DIR}
+    sed -i "s^host:.*^host: ${input_db_external_IP}^g" ${DATABASE_DIR}
+	sed -i "s^port:.*^port: ${input_db_external_Port}^g" ${DATABASE_DIR}
+	sed -i "s^user:.*^user: ${input_db_user}^g" ${DATABASE_DIR}
+    sed -i "s^passwd:.*^passwd: ${input_db_pass}^g" ${DATABASE_DIR}
+	
+	#Create cgi session credentials for DB
+    echo ""
+    echo "Making additional db login user for the webui CGI session"
+    echo "This is a limited user that interacts with the cgiSession and helps prevent"
+    echo "Your admin database credentials potentially being exposed."
+    echo ""
+    echo "CREATE USER ${cgi_session_db_user}"
+    $debug mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'%' IDENTIFIED BY '"${cgi_session_db_pass}"';"
+
+    # Grant privileges to cgi user for frontend
+    echo "Granting SELECT, INSERT, UPDATE, DELETE ON on ""${input_db_name}".frontend_session "to: ""${cgi_session_db_user}"
+    $debug mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "FLUSH PRIVILEGES;"
+	echo ""
+	echo ""
+	
+fi
 ## Extra encryption keys for sessions
 ## Generate the PEM, remove the BEGIN and END lines, and then remove the new lines
 echo ""
