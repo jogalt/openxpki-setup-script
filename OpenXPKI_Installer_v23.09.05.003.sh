@@ -975,6 +975,10 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
 	cgi_session_db_user="openxpki_cgiSession_user"
     cgi_session_db_pass=`openssl rand 50 | base64`
 	ROOT_PW="Enter_Root_Pass"
+	echo "Enter the IP of the remote database"
+	read input_db_external_IP
+	echo "Enter the port of the remote database"
+	read input_db_external_Port
 	echo "Run these commands on your external database to prepare for operations."
 	echo ""
 	$debug mysql -u root -p"${ROOT_PW}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;"
@@ -987,7 +991,9 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
 	
 	#Store credentials in /etc/openxpki/config.d/system/database.yaml
     sed -i "s^name:.*^name: ${input_db_name}^g" ${DATABASE_DIR}
-    sed -i "s^user:.*^user: ${input_db_user}^g" ${DATABASE_DIR}
+    sed -i "s^host:.*^host: ${input_db_external_IP}^g" ${DATABASE_DIR}
+	sed -i "s^port:.*^port: ${input_db_external_Port}^g" ${DATABASE_DIR}
+	sed -i "s^user:.*^user: ${input_db_user}^g" ${DATABASE_DIR}
     sed -i "s^passwd:.*^passwd: ${input_db_pass}^g" ${DATABASE_DIR}
 	
 	#Create cgi session credentials for DB
