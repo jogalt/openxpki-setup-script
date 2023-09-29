@@ -1040,11 +1040,14 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "1" ]; then
 	read input_db_external_Port
 	echo "Run these commands on your external database to prepare for operations."
 	echo ""
-	$debug mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;"
+	while ! mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e ";" ; do
+       read -s -p "Can't connect, please retry: " DB_ADMIN_PASSWORD
+    done
+	mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;"
 	echo ""
-	$debug mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'%' IDENTIFIED BY '"${input_db_pass}"';"
+	mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'%' IDENTIFIED BY '"${input_db_pass}"';"
 	echo ""
-	$debug mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'%';"
+	mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'%';"
 	echo ""
 	cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" --database  "${input_db_name}"
 	
@@ -1062,11 +1065,11 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "1" ]; then
     echo "Your admin database credentials potentially being exposed."
     echo ""
     echo "CREATE USER ${cgi_session_db_user}"
-    $debug mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'%' IDENTIFIED BY '"${cgi_session_db_pass}"';"
+    mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'%' IDENTIFIED BY '"${cgi_session_db_pass}"';"
 
     # Grant privileges to cgi user for frontend
     echo "Granting SELECT, INSERT, UPDATE, DELETE ON on ""${input_db_name}".frontend_session "to: ""${cgi_session_db_user}"
-    $debug mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "FLUSH PRIVILEGES;"
+    mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "FLUSH PRIVILEGES;"
 	echo ""
 	echo ""
 	
