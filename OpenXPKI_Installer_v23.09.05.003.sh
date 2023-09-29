@@ -976,8 +976,6 @@ cookey = "${cgi_session_cookie}"
 [session_driver]
 Directory = /tmp
 
-# CREATE USER 'openxpki_session'@'localhost' IDENTIFIED BY 'mysecret';
-# GRANT SELECT, INSERT, UPDATE, DELETE ON openxpki.frontend_session TO 'openxpki_session'@'localhost';
 NameSpace = "${input_db_name}"
 DataSource = dbi:MariaDB:dbname="${input_db_name}"
 User = "${cgi_session_db_user}"
@@ -990,9 +988,6 @@ LongReadLen = 100000
 
 #[login]
 
-# This key is used to sign non-password auth requests -
-# Create the key using "openssl ecparam -name secp256r1 -genkey -noout"
-# Put the public key into auth/stack.yaml where required
 [auth]
 sign.key="${v_cgi_session_enc_key}"
 
