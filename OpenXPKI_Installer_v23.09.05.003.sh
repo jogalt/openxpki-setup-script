@@ -808,7 +808,7 @@ fi;
 ###### Installer Function ######
 function_OpenXinstaller () {
 echo "Insalling GnuPG for package signature validation"
-apt install gnupg*
+apt install gnupg* -y
 echo "GnuPG installed."
 echo "Done"
 echo "Retrieving OpenXPKI package key and verifying."
@@ -822,12 +822,12 @@ select db in MySQL MariaDB Exit; do
 
     case $db in
       MySQL)
-       apt install default-mysql-server libdbd-mysql-perl
+       apt install default-mysql-server libdbd-mysql-perl -y
        echo "Selected MySQL as your DB Server."
        break
        ;;
       MariaDB)
-       apt install mariadb-server libdbd-mariadb-perl libdbd-mysql-perl
+       apt install mariadb-server libdbd-mariadb-perl libdbd-mysql-perl -y
        echo "Selected MariaDB as your DB Server."
        break
        ;;
@@ -840,12 +840,12 @@ select db in MySQL MariaDB Exit; do
     esac
 done
 echo -e "\nInstalling and enablig Apache mods"
-apt install apache2 libapache2-mod-fcgid
+apt install apache2 libapache2-mod-fcgid -y
 a2enmod fcgid
 
 ##Install OpenXPKI dependencies
 echo "Beginning OpenXPKI installation."
-apt install libopenxpki-perl openxpki-cgi-session-driver openxpki-i18n 
+apt install libopenxpki-perl openxpki-cgi-session-driver openxpki-i18n -y
 echo "Showing installed OpenXPKI version."
 openxpkiadm version
 sleep 3
@@ -925,17 +925,17 @@ cgi_session_db_user="openxpki_cgiSession_user"
 cgi_session_db_pass=`openssl rand 50 | base64`
 
 #Create cgi session credentials for DB
-echo "Granting permissions on ""${input_db_name}" "to: ""${input_db_user}"
+echo ""
 echo "Making additional db login user for the webui CGI session"
-echo "Using the following commands"
+echo "This is a limited user that interacts with the cgiSession and helps prevent"
+echo "Your admin database credentials potentially being exposed."
+echo ""
 echo "CREATE USER ${cgi_session_db_user}"
-sudo mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS '"${cgi_session_db_user}"'@'localhost' IDENTIFIED BY '"${cgi_session_db_pass}"';"
+sudo mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'localhost' IDENTIFIED BY '"${cgi_session_db_pass}"';"
 
 # Grant privileges to cgi user for frontend
-echo "GRANT SELECT, INSERT, UPDATE, DELETE ON openxpki.frontend_session TO '"${cgi_session_db_user}"'@'localhost'"
-
-sudo mysql -u root -p"${ROOT_PW}" -e "GRANT SELECT, INSERT, UPDATE, DELETE ON "${input_db_name}".frontend_session TO '"${cgi_session_db_user}"'@'localhost';"
-echo "sudo mysql -u root -p"${ROOT_PW}" -e "GRANT SELECT, INSERT, UPDATE, DELETE ON "${input_db_name}".frontend_session TO '"${cgi_session_db_user}"'@'localhost';""
+echo "Granting SELECT, INSERT, UPDATE, DELETE ON on ""${input_db_name}".frontend_session "to: ""${cgi_session_db_user}"
+sudo mysql -u root -p"${ROOT_PW}" -e "GRANT SELECT, INSERT, UPDATE, DELETE ON "${input_db_name}".frontend_session TO "${cgi_session_db_user}"@'localhost';"
 sudo mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
 
 fi
@@ -948,6 +948,7 @@ mkdir -p ${BASE_DIR}/tmp
 v_cgi_session_enc_key=`(cat ${BASE_DIR}/tmp/cgi_session_enc_key.key | sed '1,1d;$ d' | tr -d '\r\n')`
 v_cgi_session_enc_pub=`(cat ${BASE_DIR}/tmp/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
 
+#Generate a session cookie and additional database session encryption key
 cgi_session_cookie=`openssl rand 50 | base64`
 db_session_enc_key=`openssl rand 50 | base64`
 mv ${BASE_DIR}/webui/default.conf ${BASE_DIR}/webui/default.conf.bak
