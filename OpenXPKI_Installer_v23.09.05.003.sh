@@ -395,7 +395,7 @@ else
 echo "
 ${REALM}:
    label: ${REALM} CA
-   baseurl: https://`hostname -f`/openxpki/
+   baseurl: https://`hostname -f`/${REALM}/
 " >> "${REALM_CONF}"
 fi
 }
@@ -891,6 +891,7 @@ done
 # Define DB Directory
 DATABASE_DIR="${BASE_DIR}/config.d/system/database.yaml"
 
+# Harden initial mysql installation
 echo "Beginning MariaDB Secure installation..."
 sudo mysql -u root -p"${ROOT_PW}" -e "SET PASSWORD FOR root@localhost = PASSWORD('"${ROOT_PW}"');FLUSH PRIVILEGES;"
 echo "Removing Anonymous user."
@@ -903,6 +904,8 @@ echo "Disable remote Root Authentication."
 sudo mysql -u root -p"${ROOT_PW}" -e "DROP DATABASE IF EXISTS test"
 echo "Dropping test DB"
 sudo mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
+
+# Create initial pki database
 echo -e "Initializing Database...\n"
 sudo mysql -u root -p"${ROOT_PW}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;"
 echo "Database: ""${input_db_name}"  "created."
@@ -1240,7 +1243,6 @@ if [ $import_xpki_Inter == "1" ]; then
 echo "
     ca-signer:
         label: ${ISSUING_CA}
-        label: ${ISSUING_CA}
         export: 0
         method: literal
         value: ${v_ISSUING_CA_KEY_PASSWORD}
@@ -1269,6 +1271,7 @@ fi
 
 # The order of importing Certificates matters
 # The OpenXPKI instance must be off for this first part or importing is broken
+# Need to verify the order of operations
 openxpkiadm_root () {
 # Importing Root CA
 echo -e "\nImporting Root Certificate.."
@@ -1312,7 +1315,8 @@ echo -e "Done.\n"
 
 update_default_configs () {
 echo "Updating some of the default configuration files to include the values of your install variables"
-mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml to "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml.bak
+mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml.bak
+
 echo "
 # Those stacks are usually required so you should not remove them
 Anonymous:
@@ -1339,8 +1343,12 @@ LocalPassword:
     user@: connector:auth.connector.userdb
 " >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml
 
-mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml to "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml.bak
+#Verify Ownership
+chown -R openxpki:openxpki /etc/openxpki
+
+mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml.bak
 v_cgi_session_enc_pub=`(${BASE_DIR}/tmp/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
+
 echo "
 # Regular login for users via an external password database defined
 # in handler.yaml as "LocalPassword"
@@ -1364,7 +1372,10 @@ _System:
     handler: System
 " >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml
 
-mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/roles.yaml to "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/roles.yaml.bak
+#Verify Ownership
+chown -R openxpki:openxpki /etc/openxpki
+
+mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/roles.yaml "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/roles.yaml.bak
 echo "
 User:
     label: User
@@ -1383,6 +1394,9 @@ System:
 " >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/roles.yaml
 }
 
+#Verify Ownership
+chown -R openxpki:openxpki /etc/openxpki
+
 apache2_setup () {
 # Setup the Webserver
 a2enmod ssl rewrite headers
@@ -1391,7 +1405,7 @@ a2dissite 000-default default-ssl
 #Configure download permissions
 chmod -R 755 /var/www/download/
 
-# if you're regenerating SSL Keys, then you need to delete this chain folder, or edit this if to include some user input
+# if you're regenerating SSL Keys, then you need to delete this chain folder, or edit this to include some user input
 if [ ! -e "${BASE_DIR}/tls/chain" ]; then
     mkdir -m755 -p ${BASE_DIR}/tls/chain
     # The files in this directory have to be PEM-encoded and are accessed through hash filenames.
@@ -1410,6 +1424,7 @@ if [ ! -e "${BASE_DIR}/tls/endentity/openxpki.crt" ]; then
     echo "openssl rsa -in ${WEB_KEY} -passin file:${WEB_KEY_PASSWORD} -out ${BASE_DIR}/tls/private/openxpki.pem" >> certificateCommands.txt
     openssl rsa -in ${WEB_KEY} -passin file:${WEB_KEY_PASSWORD} -out ${BASE_DIR}/tls/private/openxpki.pem
     chmod 400 ${BASE_DIR}/tls/private/openxpki.pem
+	chown -R openxpki:openxpki /etc/openxpki
     service apache2 restart
 fi
 
@@ -1420,6 +1435,11 @@ update-ca-certificates
 }
 
 import_certificates () {
+
+#Version 3.X doesn't need to be stopped before importing.
+#Needs continous testing
+#20230928
+
 openxpkictl start
 #if [ $import_xpki_Root == "1" ] || [ $import_xpki_DV == "1" ]; then
 # echo "Stopping OpenXPKI if it's running.."
@@ -1454,6 +1474,9 @@ fi
 
 echo -e "\nOpenXPKI configuration should be complete and server should be running..."
 }
+
+#This script creates a new user.
+#Need to configure directory and handler still
 
 add_new_user () {
 echo "Enter new user name."
