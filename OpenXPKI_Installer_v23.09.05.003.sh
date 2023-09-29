@@ -1074,6 +1074,7 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "1" ]; then
 	echo ""
 	
 fi
+
 ## Extra encryption keys for sessions
 ## Generate the PEM, remove the BEGIN and END lines, and then remove the new lines
 echo ""
