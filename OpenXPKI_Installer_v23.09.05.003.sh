@@ -1,5 +1,7 @@
 #!/bin/bash
 
+exe() { sudo "\$ ${@/eval/}" ; "$@" ; }
+
 #
 # Check for Sudo Perms
 #
@@ -910,26 +912,26 @@ DATABASE_DIR="${BASE_DIR}/config.d/system/database.yaml"
 
 # Harden initial mysql installation
 echo "Beginning MariaDB Secure installation..."
-sudo mysql -u root -p"${ROOT_PW}" -e "SET PASSWORD FOR root@localhost = PASSWORD('"${ROOT_PW}"');FLUSH PRIVILEGES;"
+mysql -u root -p"${ROOT_PW}" -e "SET PASSWORD FOR root@localhost = PASSWORD('"${ROOT_PW}"');FLUSH PRIVILEGES;"
 echo "Removing Anonymous user."
-sudo mysql -u root -p"${ROOT_PW}" -e "DELETE FROM mysql.user WHERE User='';"
-sudo mysql -u root -p"${ROOT_PW}" -e "DROP USER IF EXISTS ''@'localhost'"
-sudo mysql -u root -p"${ROOT_PW}" -e "DROP USER IF EXISTS ''@'$(hostname)'"
+mysql -u root -p"${ROOT_PW}" -e "DELETE FROM mysql.user WHERE User='';"
+mysql -u root -p"${ROOT_PW}" -e "DROP USER IF EXISTS ''@'localhost'"
+mysql -u root -p"${ROOT_PW}" -e "DROP USER IF EXISTS ''@'$(hostname)'"
 echo "Dropped anonymous user."
-sudo mysql -u root -p"${ROOT_PW}" -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
+mysql -u root -p"${ROOT_PW}" -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
 echo "Disable remote Root Authentication."
-sudo mysql -u root -p"${ROOT_PW}" -e "DROP DATABASE IF EXISTS test"
+mysql -u root -p"${ROOT_PW}" -e "DROP DATABASE IF EXISTS test"
 echo "Dropping test DB"
-sudo mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
+mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
 
 # Create initial pki database
 echo -e "Initializing Database...\n"
-sudo mysql -u root -p"${ROOT_PW}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;"
+mysql -u root -p"${ROOT_PW}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;"
 echo "Database: ""${input_db_name}"  "created."
-sudo mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'localhost' IDENTIFIED BY '"${input_db_pass}"';"
+mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'localhost' IDENTIFIED BY '"${input_db_pass}"';"
 echo "User: ""${input_db_user}"  "created."
 echo "Granting permissions on ""${input_db_name}" "to: ""${input_db_user}"
-sudo mysql -u root -p"${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'localhost';"
+mysql -u root -p"${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'localhost';"
 
 #Create database schema
 echo "Copying database template to Server."
@@ -951,19 +953,22 @@ echo "This is a limited user that interacts with the cgiSession and helps preven
 echo "Your admin database credentials potentially being exposed."
 echo ""
 echo "CREATE USER ${cgi_session_db_user}"
-sudo mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'localhost' IDENTIFIED BY '"${cgi_session_db_pass}"';"
+mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'localhost' IDENTIFIED BY '"${cgi_session_db_pass}"';"
 
 # Grant privileges to cgi user for frontend
 echo "Granting SELECT, INSERT, UPDATE, DELETE ON on ""${input_db_name}".frontend_session "to: ""${cgi_session_db_user}"
-sudo mysql -u root -p"${ROOT_PW}" -e "GRANT SELECT, INSERT, UPDATE, DELETE ON "${input_db_name}".frontend_session TO "${cgi_session_db_user}"@'localhost';"
-sudo mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
+mysql -u root -p"${ROOT_PW}" -e "GRANT SELECT, INSERT, UPDATE, DELETE ON "${input_db_name}".frontend_session TO "${cgi_session_db_user}"@'localhost';"
+mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
 
 fi
 
 if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
     
+	debug=
+    debug=echo
+	
 	#Create credentials for external DB and show the user what to configure.
-
+    DATABASE_DIR="${BASE_DIR}/config.d/system/database.yaml"
 	input_db_name="openxpki"
     input_db_user="openxpki"
 	input_db_pass=`openssl rand 50 | base64`
@@ -972,13 +977,13 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
 	ROOT_PW="Enter_Root_Pass"
 	echo "Run these commands on your external database to prepare for operations."
 	echo ""
-	echo "sudo mysql -u root -p "${ROOT_PW}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;""
+	$debug mysql -u root -p"${ROOT_PW}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;"
 	echo ""
-	echo "sudo mysql -u root -p "${ROOT_PW}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'localhost' IDENTIFIED BY '"${input_db_pass}"';""
+	$debug mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'%' IDENTIFIED BY '"${input_db_pass}"';"
 	echo ""
-	echo "sudo mysql -u root -p "${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'localhost';""
+	$debug mysql -u root -p"${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'%';"
 	echo ""
-	echo "cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u root -p"${ROOT_PW}" --database  "${input_db_name}""
+	cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u root -p"${ROOT_PW}" --database  "${input_db_name}"
 	
 	#Store credentials in /etc/openxpki/config.d/system/database.yaml
     sed -i "s^name:.*^name: ${input_db_name}^g" ${DATABASE_DIR}
@@ -992,16 +997,21 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
     echo "Your admin database credentials potentially being exposed."
     echo ""
     echo "CREATE USER ${cgi_session_db_user}"
-    echo "sudo mysql -u root -p "${ROOT_PW}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'localhost' IDENTIFIED BY '"${cgi_session_db_pass}"';""
+    $debug mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'%' IDENTIFIED BY '"${cgi_session_db_pass}"';"
 
     # Grant privileges to cgi user for frontend
     echo "Granting SELECT, INSERT, UPDATE, DELETE ON on ""${input_db_name}".frontend_session "to: ""${cgi_session_db_user}"
-    echo "sudo mysql -u root -p "${ROOT_PW}" -e "GRANT SELECT, INSERT, UPDATE, DELETE ON "${input_db_name}".frontend_session TO "${cgi_session_db_user}"@'localhost';""
-    echo "sudo mysql -u root -p "${ROOT_PW}" -e "FLUSH PRIVILEGES;""
+    $debug mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
+	echo ""
+	echo ""
 	
 fi
 ## Extra encryption keys for sessions
 ## Generate the PEM, remove the BEGIN and END lines, and then remove the new lines
+echo ""
+echo "Generating public and private keys for non-password authenticated web sessions."
+echo "This is viewable in ${BASE_DIR}/webui/default.conf"
+echo "The keys are stored in ${BASE_DIR}/tmp"
 mkdir -p ${BASE_DIR}/tmp
 `openssl ecparam -name prime256v1 -genkey -noout -out ${BASE_DIR}/tmp/cgi_session_enc_key.key`
 `openssl ec -in ${BASE_DIR}/tmp/cgi_session_enc_key.key -pubout -out ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_pub.pem`
@@ -1063,7 +1073,11 @@ X-XSS-Protection = 1; mode=block;
 stack = _System
 " >> ${BASE_DIR}/webui/default.conf
 
-
+echo ""
+echo ""
+echo "Begin the script again AFTER you've configured the database."
+echo "If you've installed locally, everything has been tested to work."
+echo "If you've configured an external database, TEST IT FIRST from this host."
 }
 
 transfer_keys_files () {
