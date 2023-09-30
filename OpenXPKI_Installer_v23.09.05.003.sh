@@ -26,7 +26,7 @@ FQDN=`hostname -f`
 UFQDN="${FQDN^^}"
 
 # Global Variables
-BASE_DIR="/etc/openxpki"
+BASE_DIR="/opt/openxpki"
 OPENXPKI_CONFIG="${BASE_DIR}/config.d/system/server.yaml"
 CONF_DIR="${BASE_DIR}/config.d"
 
@@ -838,7 +838,7 @@ select db in MySQL MariaDB External_MariaDB_Manual External_MariaDB_Automatic Ex
         apt install mariadb-server libdbd-mariadb-perl libdbd-mysql-perl -y
         echo "Selected MariaDB as your DB Server."
 		input_db_external=0
-		db_type="MariaDB2"
+		db_type="MariaDB"
         break
         ;;
 	  External_MariaDB_Manual)
@@ -846,7 +846,7 @@ select db in MySQL MariaDB External_MariaDB_Manual External_MariaDB_Automatic Ex
 	    echo ""
 		input_db_external=1
 		input_db_external_auto=0
-		db_type="MariaDB2"
+		db_type="MariaDB"
 	    break
 	    ;;
       External_MariaDB_Automatic)
@@ -854,7 +854,7 @@ select db in MySQL MariaDB External_MariaDB_Manual External_MariaDB_Automatic Ex
 	    echo ""
 		input_db_external=1
 		input_db_external_auto=1
-		db_type="MariaDB2"
+		db_type="MariaDB"
 	    break
 	    ;;
       Exit)
@@ -1099,6 +1099,9 @@ v_cgi_session_enc_pub=`(cat ${BASE_DIR}/tmp/cgi_session_enc_pub.pem | sed '1,1d;
 cgi_session_cookie=`openssl rand 50 | base64`
 db_session_enc_key=`openssl rand 50 | base64`
 mv ${BASE_DIR}/webui/default.conf ${BASE_DIR}/webui/default.conf.bak
+
+#Update openxpki apache conf to account for our chosen directory
+sed -i 's|/etc/openxpki|"${BASE_DIR}"|g' /etc/apache2/sites-enabled/openxpki.conf
 
 #Need to add the tag here to check out version and not overwrite
 echo "
@@ -1588,7 +1591,37 @@ import_certificates () {
 #Needs continous testing
 #20230928
 
-openxpkictl start
+# Create systemd file and run with the correction location
+echo"
+[Unit]
+Description=OpenXPKI Trustcenter Backend
+After=network.target apache2.service
+
+[Service]
+Type=exec
+PIDFile=/var/run/openxpki/openxpkid.pid
+ExecStart=/usr/bin/openxpkictl start --nd  --config "${CONF_DIR}"
+ExecStop=/usr/bin/openxpkictl stop --config "${CONF_DIR}"
+# We want systemd to give the daemon some time to finish gracefully, but still want
+# it to kill httpd after TimeoutStopSec if something went wrong during the
+# graceful stop. Normally, Systemd sends SIGTERM signal right after the
+# ExecStop, which would kill the daemon. We are sending useless SIGCONT here to give
+# the daemon time to finish.
+Restart=on-failure
+KillSignal=SIGCONT
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target" >> /etc/systemd/system/openxpkid.service
+
+#Reload systemctl daemon
+systemctl daemon-reload
+
+#Start OpenXPKI
+systemctl start openxpkid.service
+
+
+#openxpkictl start --config "${CONF_DIR}"
 #if [ $import_xpki_Root == "1" ] || [ $import_xpki_DV == "1" ]; then
 # echo "Stopping OpenXPKI if it's running.."
 # if pgrep "openxpki" > /dev/null
