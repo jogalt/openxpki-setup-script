@@ -25,6 +25,7 @@ FQDN=`hostname -f`
 # Capitalize hostname
 UFQDN="${FQDN^^}"
 
+# Global Variables
 BASE_DIR="/etc/openxpki"
 OPENXPKI_CONFIG="${BASE_DIR}/config.d/system/server.yaml"
 CONF_DIR="${BASE_DIR}/config.d"
@@ -871,6 +872,12 @@ a2enmod fcgid
 ##Install OpenXPKI dependencies
 echo "Beginning OpenXPKI installation."
 apt install libopenxpki-perl openxpki-cgi-session-driver openxpki-i18n -y
+
+# Run the server out of /opt to prep for rhel environment
+mkdir -p /opt/openxpki
+cp -r /etc/openxpki/* /opt/openxpki
+chown -R openxpki:openxpki /opt/openxpki
+
 echo "Showing installed OpenXPKI version."
 openxpkiadm version --config "${CONF_DIR}"
 sleep 3
