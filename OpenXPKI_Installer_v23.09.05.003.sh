@@ -1747,6 +1747,7 @@ Generate_new_Root_CA)						## Generate_new_Root_CA
  question_country
  question_state
  question_locality
+ question_email
  confirm_input
  populate_files
  define_certificates  #123
@@ -1772,6 +1773,7 @@ Generate_new_Intermediate_CA)					## Generate_new_Intermediate_CA
  question_country
  question_state
  question_locality
+ question_email
  confirm_input
  populate_files
  define_certificates  #123
@@ -1829,6 +1831,7 @@ Generate_new_Datavault_Certificate)				## Generate_new_Datavault_Certificate
  question_country
  question_state
  question_locality
+ question_email
  confirm_input
  populate_files
  define_certificates  #123
@@ -1854,6 +1857,7 @@ Generate_new_Ratoken_Certificate)					## Generate_new_Ratoken_Certificate
  question_country
  question_state
  question_locality
+ question_email
  confirm_input
  populate_files
  define_certificates  #123
@@ -1879,6 +1883,7 @@ Generate_new_Web_Certificate)					## Generate_new_Web_Certificate
  question_country
  question_state
  question_locality
+ question_email
  confirm_input
  populate_files
  define_certificates  #123
