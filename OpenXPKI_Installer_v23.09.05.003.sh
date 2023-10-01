@@ -1592,7 +1592,7 @@ import_certificates () {
 #20230928
 
 # Create systemd file and run with the correction location
-echo"
+echo "
 [Unit]
 Description=OpenXPKI Trustcenter Backend
 After=network.target apache2.service
@@ -1612,7 +1612,7 @@ KillSignal=SIGCONT
 PrivateTmp=true
 
 [Install]
-WantedBy=multi-user.target" >> /etc/systemd/system/openxpkid.service
+WantedBy=multi-user.target" > /etc/systemd/system/openxpkid.service
 
 #Reload systemctl daemon
 systemctl daemon-reload
