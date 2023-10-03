@@ -1,5 +1,6 @@
 #!/bin/bash
 
+#Used to output echo the content of datbase configs for external DBs
 exe() { sudo "\$ ${@/eval/}" ; "$@" ; }
 
 #
@@ -26,7 +27,8 @@ FQDN=`hostname -f`
 UFQDN="${FQDN^^}"
 
 # Global Variables
-BASE_DIR="/opt/openxpki"
+BASE_DIR="/etc/openxpki"
+### Add a switch somewhere that will edit relevant files for BASE_DIR
 OPENXPKI_CONFIG="${BASE_DIR}/config.d/system/server.yaml"
 CONF_DIR="${BASE_DIR}/config.d"
 
@@ -1101,7 +1103,7 @@ db_session_enc_key=`openssl rand 50 | base64`
 mv ${BASE_DIR}/webui/default.conf ${BASE_DIR}/webui/default.conf.bak
 
 #Update openxpki apache conf to account for our chosen directory
-sed -i 's|/etc/openxpki|"${BASE_DIR}"|g' /etc/apache2/sites-enabled/openxpki.conf
+sed -i "s|/etc/openxpki|"${BASE_DIR}"|g" /etc/apache2/sites-enabled/openxpki.conf
 
 #Need to add the tag here to check out version and not overwrite
 echo "
@@ -1278,19 +1280,19 @@ token:
 
   ca-signer:
     inherit: default
-    key_store: OPENXPKI
+    #key_store: OPENXPKI
     key: ${vault_dir}${REALM}/${ISSUING_CA}.pem
     secret: ca-signer
 
   ratoken:
     inherit: default
-    key_store: OPENXPKI
+    #key_store: OPENXPKI
     key: ${vault_dir}${REALM}/${RATOKEN}.pem
     secret: ratoken
 
   scep:
     inherit: default
-    key_store: OPENXPKI
+    #key_store: OPENXPKI
     key: ${vault_dir}${REALM}/${SCEP}.pem
     secret: scep
 
@@ -1466,83 +1468,83 @@ echo -e "Done.\n"
 
 update_default_configs () {
 echo "Updating some of the default configuration files to include the values of your install variables"
-mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml.bak
+# mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml.bak
 
-echo "
-# Those stacks are usually required so you should not remove them
-Anonymous:
-    type: Anonymous
-    label: Anonymous
+# echo "
+# # Those stacks are usually required so you should not remove them
+# Anonymous:
+    # type: Anonymous
+    # label: Anonymous
 
-System:
-    type: Anonymous
-    role: System
+# System:
+    # type: Anonymous
+    # role: System
 
-# Using the default config this allows a user login with ANY certificate
-# issued by the ${REALM} which has the client auth keyUsage bit set
-# the commonName is used as username!
-Certificate:
-    type: ClientX509
-    role: User
-    arg: CN
-    trust_anchor:
-        realm: ${REALM}
+# # Using the default config this allows a user login with ANY certificate
+# # issued by the ${REALM} which has the client auth keyUsage bit set
+# # the commonName is used as username!
+# Certificate:
+    # type: ClientX509
+    # role: User
+    # arg: CN
+    # trust_anchor:
+        # realm: ${REALM}
 
-# Read the userdata from a YAML file defined in auth/connector.yaml
-LocalPassword:
-    type: Password
-    user@: connector:auth.connector.userdb
-" >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml
+# # Read the userdata from a YAML file defined in auth/connector.yaml
+# LocalPassword:
+    # type: Password
+    # user@: connector:auth.connector.userdb
+# " >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml
 
 #Verify Ownership
 chown -R openxpki:openxpki /etc/openxpki
 
-mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml.bak
+# mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml.bak
 v_cgi_session_enc_pub=`(${BASE_DIR}/tmp/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
 
-echo "
-# Regular login for users via an external password database defined
-# in handler.yaml as "LocalPassword"
-LocalPassword:
-    label: User Login
-    description: Login with username and password
-    handler: LocalPassword
-    type: passwd
+# echo "
+# # Regular login for users via an external password database defined
+# # in handler.yaml as "LocalPassword"
+# LocalPassword:
+    # label: User Login
+    # description: Login with username and password
+    # handler: LocalPassword
+    # type: passwd
 
-# Login with a client certificate, needs to be setup on the webserver
-Certificate:
-    label: Client certificate
-    description: Login using a client certificate
-    handler: Certificate
-    type: x509
-    sign:
-    key: ${v_cgi_session_enc_pub}
+# # Login with a client certificate, needs to be setup on the webserver
+# Certificate:
+    # label: Client certificate
+    # description: Login using a client certificate
+    # handler: Certificate
+    # type: x509
+    # sign:
+    # key: ${v_cgi_session_enc_pub}
 
-# The default handler for automated interfaces, hidden from the UI
-_System:
-    handler: System
-" >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml
+# # The default handler for automated interfaces, hidden from the UI
+# _System:
+    # handler: System
+# " >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml
 
 #Verify Ownership
 chown -R openxpki:openxpki /etc/openxpki
 
-mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/roles.yaml "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/roles.yaml.bak
-echo "
-User:
-    label: User
+# mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/roles.yaml "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/roles.yaml.bak
+# echo "
+# User:
+    # label: User
 
-# operator personel
-RA Operator:
-    label: RA Operator
+# # operator personel
+# RA Operator:
+    # label: RA Operator
 
-# operator with ca key access
-CA Operator:
-    label: CA Operator
+# # operator with ca key access
+# CA Operator:
+    # label: CA Operator
 
-# system user, anything which is running on the shell
-System:
-    label: System
-" >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/roles.yaml
+# # system user, anything which is running on the shell
+# System:
+    # label: System
+# " >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/roles.yaml
 }
 
 #Verify Ownership
@@ -1678,8 +1680,8 @@ if [ $v_new_user_role == "CA" ] || [ $v_new_user_role == "RA" ]; then
 	fi
 #	echo $v_new_user $v_new_user_saltPass $v_new_user_role 
 	echo "$v_new_user:
-	digest: "{SSHA}"$v_new_user_saltPass
-	role: $v_new_user_role Operator" >> $userFile
+    digest: "{SSHA}"$v_new_user_saltPass
+    role: $v_new_user_role Operator" >> $userFile
 fi
 if [ $v_new_user_role == "User" ]; then
 	userFile='/home/pkiadm/userdb.yaml'
@@ -1687,8 +1689,8 @@ if [ $v_new_user_role == "User" ]; then
     touch $userFile
 	fi
 	echo "$v_new_user:
-	digest: "{SSHA}"$v_new_user_saltPass
-	role: $v_new_user_role" >> $userFile
+    digest: """{SSHA}"$v_new_user_saltPass""
+    role: $v_new_user_role" >> $userFile
 fi
 create_new_user
 }
