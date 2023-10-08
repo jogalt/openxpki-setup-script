@@ -567,7 +567,7 @@ authorityKeyIdentifier  = keyid,issuer
 [ v3_ratoken_extensions ]
 subjectKeyIdentifier    = hash
 basicConstraints        = CA:FALSE
-extendedKeyUsage        = cmcRA
+extendedKeyUsage        = cmcRA, digitalSignature
 
 [ v3_web_extensions ]
 subjectKeyIdentifier    = hash
@@ -1103,7 +1103,7 @@ db_session_enc_key=`openssl rand 50 | base64`
 mv ${BASE_DIR}/webui/default.conf ${BASE_DIR}/webui/default.conf.bak
 
 #Update openxpki apache conf to account for our chosen directory
-sed -i "s|/etc/openxpki|"${BASE_DIR}"|g" /etc/apache2/sites-enabled/openxpki.conf
+sed -i "s|/etc/openxpki|"${BASE_DIR}"|g" /etc/apache2/sites-available/openxpki.conf
 
 #Need to add the tag here to check out version and not overwrite
 echo "
@@ -1280,19 +1280,16 @@ token:
 
   ca-signer:
     inherit: default
-    #key_store: OPENXPKI
     key: ${vault_dir}${REALM}/${ISSUING_CA}.pem
     secret: ca-signer
 
   ratoken:
     inherit: default
-    #key_store: OPENXPKI
     key: ${vault_dir}${REALM}/${RATOKEN}.pem
     secret: ratoken
 
   scep:
     inherit: default
-    #key_store: OPENXPKI
     key: ${vault_dir}${REALM}/${SCEP}.pem
     secret: scep
 
