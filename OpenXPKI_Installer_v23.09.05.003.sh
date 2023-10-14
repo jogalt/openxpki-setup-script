@@ -395,6 +395,17 @@ populate_files () {
 echo "Continuing with configuration!"
 echo "Checking if Realm Config Directory exists."
 
+#Add the new realm to the configs for rpc, scep and est
+#sed -i 's|realm = democa|realm = "${REALM}"|g' ${BASE_DIR}/rpc/
+cd ${BASE_DIR}
+find . -type f -not -path '*/\.*' -exec sed -i 's|realm = democa|realm = "${REALM}"|g' {} +
+
+#Remove democa CA realm
+sed -i '/democa/d' ${BASE_DIR}/config.d/system/realms.yaml
+sed -i '/[Ee]xample/d' ${BASE_DIR}/config.d/system/realms.yaml
+#Clean up the spaces before continuing
+sed -i '/^[[:space:]]*$/d' ${BASE_DIR}/config.d/system/realms.yaml
+
 # Make a new realm folder
 KEY_PASSWORD="${input_password}"
 SSL_REALM="${BASE_DIR}/ca/${REALM}"
@@ -408,7 +419,7 @@ if [ ! -d "${BASE_DIR}/config.d/realm/${REALM}" ]; then
   cp -R ${BASE_DIR}/config.d/realm.tpl/* ${BASE_DIR}/config.d/realm/${REALM}
 fi
     # If Realm does not exist, we'll add it to the Realm Yaml.
-    # This avoids readding it after everytime the script runs.
+    # This avoids re-adding it after everytime the script runs.
     # Add new realm to the Realms config.
 if grep -Fq "$REALM" ${REALM_CONF}; then
   echo "It appears your Realm is alreddy in configured in:"
@@ -1334,39 +1345,35 @@ if [ $import_xpki_Ratoken == "1" ]; then
 v_RATOKEN_KEY_PASSWORD="$(cat ${RATOKEN_KEY_PASSWORD})"
 fi
 if [ $import_xpki_DV == "1" ]; then
-echo "
-    vault:
-        label: ${DATAVAULT}
-        export: 0
-        method: literal
-        value: ${v_DATAVAULT_KEY_PASSWORD}
+echo "  vault:
+    label: ${DATAVAULT}
+    export: 0
+    method: literal
+    value: ${v_DATAVAULT_KEY_PASSWORD}
 " >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
 fi
 if [ $import_xpki_Inter == "1" ]; then
-echo "
-    ca-signer:
-        label: ${ISSUING_CA}
-        export: 0
-        method: literal
-        value: ${v_ISSUING_CA_KEY_PASSWORD}
+echo "  ca-signer:
+    label: ${ISSUING_CA}
+    export: 0
+    method: literal
+    value: ${v_ISSUING_CA_KEY_PASSWORD}
 " >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
 fi
 if [ $import_xpki_Scep == "1" ]; then
-echo "
-    scep:
-        label: ${SCEP}
-        export: 0
-        method: literal
-        value: ${v_SCEP_KEY_PASSWORD}
+echo "  scep:
+    label: ${SCEP}
+    export: 0
+    method: literal
+    value: ${v_SCEP_KEY_PASSWORD}
 " >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
 fi
 if [ $import_xpki_Ratoken == "1" ]; then
-echo "
-    ratoken:
-        label: ${RATOKEN}
-        export: 0
-        method: literal
-        value: ${v_RATOKEN_KEY_PASSWORD}
+echo "  ratoken:
+    label: ${RATOKEN}
+    export: 0
+    method: literal
+    value: ${v_RATOKEN_KEY_PASSWORD}
 " >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
 fi
 else
@@ -1397,39 +1404,35 @@ if [ $import_xpki_Ratoken == "1" ]; then
 v_RATOKEN_KEY_PASSWORD="$(cat ${RATOKEN_KEY_PASSWORD})"
 fi
 if [ $import_xpki_DV == "1" ]; then
-echo "    
-    vault:
-        label: ${DATAVAULT}
-        export: 0
-        method: literal
-        value: ${v_DATAVAULT_KEY_PASSWORD}
+echo "  vault:
+    label: ${DATAVAULT}
+    export: 0
+    method: literal
+    value: ${v_DATAVAULT_KEY_PASSWORD}
 " >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
 fi
 if [ $import_xpki_Inter == "1" ]; then
-echo "
-    ca-signer:
-        label: ${ISSUING_CA}
-        export: 0
-        method: literal
-        value: ${v_ISSUING_CA_KEY_PASSWORD}
+echo "  ca-signer:
+    label: ${ISSUING_CA}
+    export: 0
+    method: literal
+    value: ${v_ISSUING_CA_KEY_PASSWORD}
 " >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
 fi
 if [ $import_xpki_Ratoken == "1" ]; then
-echo "
-    ratoken:
-        label: ${RATOKEN}
-        export: 0
-        method: literal
-        value: ${v_RATOKEN_KEY_PASSWORD}
+echo "  ratoken:
+    label: ${RATOKEN}
+    export: 0
+    method: literal
+    value: ${v_RATOKEN_KEY_PASSWORD}
 " >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
 fi
 if [ $import_xpki_Scep == "1" ]; then
-echo "
-    scep:
-        label: ${SCEP}
-        export: 0
-        method: literal
-        value: ${v_SCEP_KEY_PASSWORD}
+echo "  scep:
+    label: ${SCEP}
+    export: 0
+    method: literal
+    value: ${v_SCEP_KEY_PASSWORD}
 " >> ${BASE_DIR}/config.d/realm/${REALM}/crypto.yaml
 fi
 fi
@@ -1512,7 +1515,7 @@ Production:
 #Verify Ownership
 chown -R openxpki:openxpki /etc/openxpki
 
-# mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml.bak
+mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml.bak
 v_cgi_session_enc_pub=`(cat ${BASE_DIR}/tmp/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
 
 echo "
