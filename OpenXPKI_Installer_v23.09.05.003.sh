@@ -1513,7 +1513,7 @@ Production:
 chown -R openxpki:openxpki /etc/openxpki
 
 # mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml.bak
-v_cgi_session_enc_pub=`(${BASE_DIR}/tmp/"${REALM}"/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
+v_cgi_session_enc_pub=`(${BASE_DIR}/tmp/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
 
 echo "
 # Allows Anonymous Login (also from the WebUI!)
