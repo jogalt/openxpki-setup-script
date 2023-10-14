@@ -830,7 +830,7 @@ fi;
 ###### Installer Function ######
 function_OpenXinstaller () {
 echo "Insalling GnuPG for package signature validation"
-apt install gnupg* -y
+apt install argon2 gnupg* -y
 echo "GnuPG installed."
 echo "Done"
 echo "Retrieving OpenXPKI package key and verifying."
@@ -1107,11 +1107,11 @@ echo ""
 echo "Generating public and private keys for non-password authenticated web sessions."
 echo "This is viewable in ${BASE_DIR}/webui/default.conf"
 echo "The keys are stored in ${BASE_DIR}/tmp"
-mkdir -p ${BASE_DIR}/tmp/${REALM}
-`openssl ecparam -name prime256v1 -genkey -noout -out ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_key.key`
-`openssl ec -in ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_key.key -pubout -out ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_pub.pem`
-v_cgi_session_enc_key=`(cat ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_key.key | sed '1,1d;$ d' | tr -d '\r\n')`
-v_cgi_session_enc_pub=`(cat ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
+mkdir -p ${BASE_DIR}/tmp/
+`openssl ecparam -name prime256v1 -genkey -noout -out ${BASE_DIR}/tmp/cgi_session_enc_key.key`
+`openssl ec -in ${BASE_DIR}/tmp/cgi_session_enc_key.key -pubout -out ${BASE_DIR}/tmp/cgi_session_enc_pub.pem`
+v_cgi_session_enc_key=`(cat ${BASE_DIR}/tmp/cgi_session_enc_key.key | sed '1,1d;$ d' | tr -d '\r\n')`
+v_cgi_session_enc_pub=`(cat ${BASE_DIR}/tmp/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
 
 #Generate a session cookie and additional database session encryption key
 cgi_session_cookie=`openssl rand 50 | base64`
