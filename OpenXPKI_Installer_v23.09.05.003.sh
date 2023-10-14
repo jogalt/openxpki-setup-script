@@ -180,6 +180,22 @@ else
 fi
 }
 
+create_argon () {
+unset password;
+while IFS= read -r -s -n1 pass; do
+  if [[ -z $pass ]]; then
+     echo
+     break
+  else
+     echo -n '*'
+     password+=$pass
+  fi
+done
+salt=`openssl rand 16 | base64`
+pass2=`echo $password | argon2 $salt -id -k 32768 -t 3 -v 13 -p 1 | grep Encoded | awk '{print$2}'`
+}
+
+
 question_email () {
 # Email
 echo -e "What's your email address or distro for the root certs?\n"
@@ -1091,11 +1107,11 @@ echo ""
 echo "Generating public and private keys for non-password authenticated web sessions."
 echo "This is viewable in ${BASE_DIR}/webui/default.conf"
 echo "The keys are stored in ${BASE_DIR}/tmp"
-mkdir -p ${BASE_DIR}/tmp
-`openssl ecparam -name prime256v1 -genkey -noout -out ${BASE_DIR}/tmp/cgi_session_enc_key.key`
-`openssl ec -in ${BASE_DIR}/tmp/cgi_session_enc_key.key -pubout -out ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_pub.pem`
-v_cgi_session_enc_key=`(cat ${BASE_DIR}/tmp/cgi_session_enc_key.key | sed '1,1d;$ d' | tr -d '\r\n')`
-v_cgi_session_enc_pub=`(cat ${BASE_DIR}/tmp/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
+mkdir -p ${BASE_DIR}/tmp/${REALM}
+`openssl ecparam -name prime256v1 -genkey -noout -out ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_key.key`
+`openssl ec -in ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_key.key -pubout -out ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_pub.pem`
+v_cgi_session_enc_key=`(cat ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_key.key | sed '1,1d;$ d' | tr -d '\r\n')`
+v_cgi_session_enc_pub=`(cat ${BASE_DIR}/tmp/${REALM}/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
 
 #Generate a session cookie and additional database session encryption key
 cgi_session_cookie=`openssl rand 50 | base64`
@@ -1465,62 +1481,70 @@ echo -e "Done.\n"
 
 update_default_configs () {
 echo "Updating some of the default configuration files to include the values of your install variables"
-# mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml.bak
+mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml.bak
 
-# echo "
-# # Those stacks are usually required so you should not remove them
-# Anonymous:
-    # type: Anonymous
-    # label: Anonymous
+echo "
+# Those stacks are usually required so you should not remove them
+Anonymous:
+    type: Anonymous
+    label: Anonymous
 
-# System:
-    # type: Anonymous
-    # role: System
+System:
+    type: Anonymous
+    role: System
 
-# # Using the default config this allows a user login with ANY certificate
-# # issued by the ${REALM} which has the client auth keyUsage bit set
-# # the commonName is used as username!
-# Certificate:
-    # type: ClientX509
-    # role: User
-    # arg: CN
-    # trust_anchor:
-        # realm: ${REALM}
+# Using the default config this allows a user login with ANY certificate
+# issued by the ${REALM} which has the client auth keyUsage bit set
+# the commonName is used as username!
+Certificate:
+    type: ClientX509
+    role: User
+    arg: CN
+    trust_anchor:
+        realm: ${REALM}
 
-# # Read the userdata from a YAML file defined in auth/connector.yaml
-# LocalPassword:
-    # type: Password
-    # user@: connector:auth.connector.userdb
-# " >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml
+# Read the userdata from a YAML file defined in auth/connector.yaml
+Production:
+    type: Password
+    user@: connector:auth.connector.userdb
+" >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/handler.yaml
 
 #Verify Ownership
 chown -R openxpki:openxpki /etc/openxpki
 
 # mv "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml.bak
-v_cgi_session_enc_pub=`(${BASE_DIR}/tmp/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
+v_cgi_session_enc_pub=`(${BASE_DIR}/tmp/"${REALM}"/cgi_session_enc_pub.pem | sed '1,1d;$ d' | tr -d '\r\n')`
 
-# echo "
-# # Regular login for users via an external password database defined
-# # in handler.yaml as "LocalPassword"
-# LocalPassword:
-    # label: User Login
-    # description: Login with username and password
-    # handler: LocalPassword
-    # type: passwd
+echo "
+# Allows Anonymous Login (also from the WebUI!)
+# Disable or make ACL to limit interaction from anon
+Anonymous:
+    label: Anonymous
+    description: Access for guests without credentials.
+    handler: Anonymous
+    type: anon
+	
+# Regular login for users via an external password database defined
+# in handler.yaml as "Production"
+Production:
+    label: User Login
+    description: Login with username and password
+    handler: Production
+    type: passwd
 
-# # Login with a client certificate, needs to be setup on the webserver
-# Certificate:
-    # label: Client certificate
-    # description: Login using a client certificate
-    # handler: Certificate
-    # type: x509
-    # sign:
-    # key: ${v_cgi_session_enc_pub}
+# Login with a client certificate, needs to be setup on the webserver
+Certificate:
+    label: Client certificate
+    description: Login using a client certificate
+    handler: Certificate
+    type: x509
+    sign:
+    key: ${v_cgi_session_enc_pub}
 
-# # The default handler for automated interfaces, hidden from the UI
-# _System:
-    # handler: System
-# " >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml
+# The default handler for automated interfaces, hidden from the UI
+_System:
+    handler: System
+" >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/stack.yaml
 
 #Verify Ownership
 chown -R openxpki:openxpki /etc/openxpki
@@ -1662,13 +1686,7 @@ add_new_user () {
 echo "Enter new user name."
 echo ""
 read v_new_user
-echo "Enter user password."
-echo ""
-read v_new_user_pass
-salt=$(openssl rand -base64 3)
-echo $salt
-v_new_user_saltPass=$(echo -n$(echo -n $v_new_user_pass$salt | openssl sha1 -binary)$salt | openssl enc -base64)
-echo $v_new_user_saltPass
+create_argon
 # Add new user details to the userdb or admindb
 if [ $v_new_user_role == "CA" ] || [ $v_new_user_role == "RA" ]; then
 	userFile='/home/pkiadm/admindb.yaml'
@@ -1677,7 +1695,7 @@ if [ $v_new_user_role == "CA" ] || [ $v_new_user_role == "RA" ]; then
 	fi
 #	echo $v_new_user $v_new_user_saltPass $v_new_user_role 
 	echo "$v_new_user:
-    digest: "{SSHA}"$v_new_user_saltPass
+    digest: $pass2
     role: $v_new_user_role Operator" >> $userFile
 fi
 if [ $v_new_user_role == "User" ]; then
@@ -1686,7 +1704,7 @@ if [ $v_new_user_role == "User" ]; then
     touch $userFile
 	fi
 	echo "$v_new_user:
-    digest: """{SSHA}"$v_new_user_saltPass""
+    digest: $pass2
     role: $v_new_user_role" >> $userFile
 fi
 create_new_user
