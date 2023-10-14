@@ -400,6 +400,11 @@ echo "Checking if Realm Config Directory exists."
 cd ${BASE_DIR}
 find . -type f -not -path '*/\.*' -exec sed -i 's|realm = democa|realm = "${REALM}"|g' {} +
 
+DomainName=`hostname -d`
+# Edit the issuing profiles under realm 
+sed -i 's|pki.example.com|"${FQDN}"|g' ${BASE_DIR}/config.d/realm/"${REALM}"/profile/default.yaml
+sed -i 's|ocsp.example.com|"ocsp.${DomainName,,}"|g' ${BASE_DIR}/config.d/realm/"${REALM}"/profile/default.yaml
+
 #Remove democa CA realm
 sed -i '/democa/d' ${BASE_DIR}/config.d/system/realms.yaml
 sed -i '/[Ee]xample/d' ${BASE_DIR}/config.d/system/realms.yaml
