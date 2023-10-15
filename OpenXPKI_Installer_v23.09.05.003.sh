@@ -443,23 +443,14 @@ WDAYS="397" # 3 years web
 DDAYS="$RDAYS" # 20 years datavault (same a root)
 SDATE="$input_SDATE" # Need the correct format # incorporate with if statements
 EDATE="$input_EDATE" # Need the correct format # incorporate with if statements
-# Add future option to input start date for adding certificates :
-# openssl ca -in csr.pem -startdate 140529000000Z
-#SDATE=YYMMDDHHMMSSZ
-#EDATE=YYMMDDHHMMSSZ
 
+openssl rand -writerand .rnd
 # creation neccessary directories and files
 echo -n "Creating configuration for openssl ($OPENSSL_CONF) .. "
 test -d "${SSL_REALM}" || mkdir -m 755 -p "${SSL_REALM}" && chown ${user}:root "${SSL_REALM}"
 OPENSSL_DIR="${SSL_REALM}/.openssl"
 test -d "${OPENSSL_DIR}" || mkdir -m 700 "${OPENSSL_DIR}" && chown root:root "${OPENSSL_DIR}"
 cd "${OPENSSL_DIR}";
-
-## Verify output during testing
-#echo -e ${ROOT_CA_CERTIFICATE_URI}"\n" >> ${BASE_DIR}/ca/${REALM}/URI.txt
-#echo -e ${ROOT_CA_REVOCATION_URI}"\n" >> ${BASE_DIR}/ca/${REALM}/URI.txt
-#echo -e ${ISSUING_REVOCATION_URI}"\n">> ${BASE_DIR}/ca/${REALM}/URI.txt
-#echo -e ${ISSUING_CERTIFICATE_URI} >> ${BASE_DIR}/ca/${REALM}/URI.txt
 
 OPENSSL_CONF="${OPENSSL_DIR}/openssl.cnf"
 
@@ -535,11 +526,6 @@ emailAddress_max        = 64
 [ v3_ca_reqexts ]
 subjectKeyIdentifier    = hash
 keyUsage                = digitalSignature, keyCertSign, cRLSign
-
-[ v3_ca_reqexts ]
-ubjectKeyIdentifier     = hash
-keyUsage                = digitalSignature, keyCertSign, cRLSign
-extendedKeyUsage        = cmcCA
 
 [ v3_datavault_reqexts ]
 subjectKeyIdentifier    = hash
