@@ -395,16 +395,6 @@ populate_files () {
 echo "Continuing with configuration!"
 echo "Checking if Realm Config Directory exists."
 
-#Add the new realm to the configs for rpc, scep and est
-#cd ${BASE_DIR}
-#find . -type f -not -path '*/\.*' -exec sed -i 's|realm = democa|realm = "${REALM}"|g' {} +
-
-#Remove democa CA realm
-sed -i '/democa/d' ${BASE_DIR}/config.d/system/realms.yaml
-sed -i '/[Ee]xample/d' ${BASE_DIR}/config.d/system/realms.yaml
-#Clean up the spaces before continuing
-sed -i '/^[[:space:]]*$/d' ${BASE_DIR}/config.d/system/realms.yaml
-
 # Make a new realm folder
 KEY_PASSWORD="${input_password}"
 SSL_REALM="${BASE_DIR}/ca/${REALM}"
@@ -1575,8 +1565,23 @@ chown -R openxpki:openxpki /etc/openxpki
 
 DomainName=`hostname -d`
 # Edit the issuing profiles under realm 
-grep -rl 'pki.example.com' /etc/openxpki/config.d/"${REALM}" | sed -i 's|pki.example.com|"${FQDN,,}"|g'
-grep -rl 'pki.example.com' /etc/openxpki/config.d/"${REALM}" | sed -i 's|ocsp.example.com|"ocsp.${DomainName,,}"|g'
+grep -rl 'pki.example.com' /etc/openxpki/config.d/realm/"${REALM}" | sed -i 's|pki.example.com|"${FQDN,,}"|g'
+grep -rl 'pki.example.com' /etc/openxpki/config.d/realm/"${REALM}" | sed -i 's|ocsp.example.com|"ocsp.${DomainName,,}"|g'
+
+#Add the new realm to the configs for rpc, scep and est
+sed -i 's|realm = democa|realm = ${REALM}|g' ${BASE_DIR}/scep/default.conf
+sed -i 's|realm = democa|realm = ${REALM}|g' ${BASE_DIR}/est/default.conf
+sed -i 's|realm = democa|realm = ${REALM}|g' ${BASE_DIR}/rpc/default.conf
+sed -i 's|realm = democa|realm = ${REALM}|g' ${BASE_DIR}/rpc/public.conf
+sed -i 's|realm = democa|realm = ${REALM}|g' ${BASE_DIR}/rpc/enroll.conf
+
+
+#Remove democa CA realm
+sed -i '/democa/d' ${BASE_DIR}/config.d/system/realms.yaml
+sed -i '/[Ee]xample/d' ${BASE_DIR}/config.d/system/realms.yaml
+
+#Clean up the spaces before continuing
+sed -i '/^[[:space:]]*$/d' ${BASE_DIR}/config.d/system/realms.yaml
 }
 
 #Verify Ownership
@@ -1697,18 +1702,21 @@ add_new_user () {
 echo "Enter new user name."
 echo ""
 read v_new_user
-echo "Enter password, carefully"
-create_argon
+echo "Run the following command to create an argon digest."
+echo "openxpkiadm hashpwd -s argon2"
+echo "Next, copy the below output with the digest inside single quotes (')"
+echo "to the userdb file."
+
 # Add new user details to the userdb or admindb
 if [ $v_new_user_role == "CA" ] || [ $v_new_user_role == "RA" ]; then
-	userFile='/home/pkiadm/admindb.yaml'
+	userFile='/home/pkiadm/userdb.yaml'
 	if [ ! -f $userFile ]; then
     touch $userFile
 	chown -R openxpki:openxpki $userFile
 	fi
-#	echo $v_new_user $v_new_user_saltPass $v_new_user_role 
+    echo "Add the digest to $userFile"
 	echo "$v_new_user:
-    digest: "'"${pass2}"'"
+    digest: ''
     role: $v_new_user_role Operator" >> $userFile
 fi
 if [ $v_new_user_role == "User" ]; then
@@ -1717,20 +1725,30 @@ if [ $v_new_user_role == "User" ]; then
     touch $userFile
 	chown -R openxpki:openxpki $userFile
 	fi
+	echo "Add the digest to $userFile"
 	echo "$v_new_user:
-    digest: "'"${pass2}"'"
+    digest: ''
     role: $v_new_user_role" >> $userFile
 fi
 # While using local userdb/admindb, openX needs to restart to pull in DB
 # during the startup process, else users can't login.
+echo ""
+echo "Restarting Server to apply the new user."
+echo "Add the digest to the correct user in the userdb file."
 openxpkictl restart
 create_new_user
 }
 
 create_new_user () {
 PS3="Select user role.  "
-select role in Certificate_Authority Registration_Authority User Quit; do
+select role in Create_Hash Certificate_Authority Registration_Authority User Quit; do
 case $role in
+Create_Hash)
+ echo "Run the following command to get your digest,"
+ echo "then run the script again."
+ echo "openxpkiadm hashpwd -s argon2"
+ break
+ ;;
 Certificate_Authority)
  v_new_user_role="CA"
  add_new_user
@@ -1754,6 +1772,10 @@ User)
   ;;
 esac
 done
+}
+
+show_realm_certs () {
+openxpkiadm alias --realm ${REALM}
 }
 
 echo -e "\nFollow the prompts for creating certificates ... "
