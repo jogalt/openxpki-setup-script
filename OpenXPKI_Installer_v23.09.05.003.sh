@@ -1747,7 +1747,9 @@ case $role in
 Run_First_Create_Hash)
  echo "Run the following command to get your digest,"
  echo "then run the script again."
+ echo ""
  echo "openxpkiadm hashpwd -s argon2"
+ echo ""
  break
  ;;
 Certificate_Authority)
