@@ -558,7 +558,7 @@ extendedKeyUsage        = serverAuth, clientAuth
 subjectKeyIdentifier    = hash
 keyUsage                = digitalSignature, keyCertSign, cRLSign
 basicConstraints        = critical,CA:TRUE
-authorityKeyIdentifier  = keyid:always,issuer:always
+authorityKeyIdentifier  = keyid:always,issuer
 
 [ v3_issuing_extensions ]
 subjectKeyIdentifier    = hash
