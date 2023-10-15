@@ -829,7 +829,7 @@ wget https://packages.openxpki.org/v3/debian/Release.key -O - 2>/dev/null | tee 
 #
 echo "Adding OpenXPKI to sources."
 echo -e "Types: deb\nURIs: https://packages.openxpki.org/v3/bookworm/\nSuites: bookworm\nComponents: release\nSigned-By: /usr/share/keyrings/openxpki.pgp" > /etc/apt/sources.list.d/openxpki.sources
-apt update
+apt update -y
 PS3="Do you want to install MySQL, MariaDB or use an External Database?   "
 input_db_external=0
 input_db_external_auto=0
