@@ -1550,16 +1550,16 @@ chown -R openxpki:openxpki /etc/openxpki
 echo "updating the Realm default profile."
 DomainName=`hostname -d`
 # Edit the issuing profiles under realm 
-sed -i 's|pki.example.com|"${FQDN,,}"|g' ${BASE_DIR}/config.d/realm/${REALM}/profile/default.yaml
-sed -i 's|ocsp.example.com|"ocsp.${DomainName,,}"|g' ${BASE_DIR}/config.d/realm/${REALM}/profile/default.yaml
+sed -i "s|pki.example.com|${FQDN,,}|g" ${BASE_DIR}/config.d/realm/${REALM}/profile/default.yaml
+sed -i "s|ocsp.example.com|ocsp.${DomainName,,}|g" ${BASE_DIR}/config.d/realm/${REALM}/profile/default.yaml
 
 echo "updating the Server default scep, est and rpc confs"
 #Add the new realm to the configs for rpc, scep and est
-sed -i 's|realm = democa|realm = "${REALM}"|g' ${BASE_DIR}/scep/default.conf
-sed -i 's|realm = democa|realm = "${REALM}"|g' ${BASE_DIR}/est/default.conf
-sed -i 's|realm = democa|realm = "${REALM}"|g' ${BASE_DIR}/rpc/default.conf
-sed -i 's|realm = democa|realm = "${REALM}"|g' ${BASE_DIR}/rpc/public.conf
-sed -i 's|realm = democa|realm = "${REALM}"|g' ${BASE_DIR}/rpc/enroll.conf
+sed -i "s|realm = democa|realm = ${REALM}|g" ${BASE_DIR}/scep/default.conf
+sed -i "s|realm = democa|realm = ${REALM}|g" ${BASE_DIR}/est/default.conf
+sed -i "s|realm = democa|realm = ${REALM}|g" ${BASE_DIR}/rpc/default.conf
+sed -i "s|realm = democa|realm = ${REALM}|g" ${BASE_DIR}/rpc/public.conf
+sed -i "s|realm = democa|realm = ${REALM}|g" ${BASE_DIR}/rpc/enroll.conf
 
 echo "Removing the democa from the realms file."
 #Remove democa CA realm
