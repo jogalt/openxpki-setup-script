@@ -469,15 +469,15 @@ echo $(date +%Y%m%d%H%M)"0001" > "${OPENSSL_DIR}/crlnumber"
 echo $(date +%Y%m%d%H%M)"0001" >> "${OPENSSL_DIR}/serial"
 
 echo "
-HOME			= .
-RANDFILE                 = /var/openxpki/rand
+HOME                    = .
+RANDFILE                = /var/openxpki/rand
 
 [ ca ]
-default_ca               = CA_default
+default_ca              = CA_default
 
 [ req ]
-default_bits             = ${BITS}
-distinguished_name       = req_distinguished_name
+default_bits            = ${BITS}
+distinguished_name      = req_distinguished_name
 
 [ CA_default ]
 dir                     = ${OPENSSL_DIR}
@@ -502,17 +502,12 @@ stateOrProvinceName_default     = "${STATE}"
 
 [ policy_match ]
 countryName             = match
-stateOrProvinceName	    = supplied
+stateOrProvinceName     = supplied
 localityName            = supplied
 organizationName        = optional
 organizationalUnitName	= supplied
-commonName		        = supplied
+commonName              = supplied
 emailAddress	       	= supplied
-
-# x509_extensions               = v3_ca_reqexts # not for root self signed, only for issuing
-# x509_extensions              = v3_datavault_reqexts # not required self signed
-# x509_extensions               = v3_scep_reqexts
-# x509_extensions               = v3_web_reqexts
 
 [ req_distinguished_name ]
 countryName             = Country Name (2 letter code)
@@ -562,7 +557,9 @@ extendedKeyUsage        = serverAuth, clientAuth
 subjectKeyIdentifier    = hash
 keyUsage                = digitalSignature, keyCertSign, cRLSign
 basicConstraints        = critical,CA:TRUE
-authorityKeyIdentifier  = keyid:always,issuer
+authorityKeyIdentifier  = keyid:always,issuer:always
+crlDistributionPoints	= "${ROOT_CA_REVOCATION_URI}"
+authorityInfoAccess	    = caIssuers;"${ROOT_CA_CERTIFICATE_URI}"
 
 [ v3_issuing_extensions ]
 subjectKeyIdentifier    = hash
@@ -570,7 +567,7 @@ keyUsage                = digitalSignature, keyCertSign, cRLSign
 basicConstraints        = critical,CA:TRUE
 authorityKeyIdentifier  = keyid:always,issuer:always
 crlDistributionPoints	= "${ROOT_CA_REVOCATION_URI}"
-authorityInfoAccess	    = caIssuers;"${ROOT_CA_CERTIFICATE_URI}"
+authorityInfoAccess     = caIssuers;"${ROOT_CA_CERTIFICATE_URI}"
 extendedKeyUsage        = cmcCA
 
 [ v3_datavault_extensions ]
@@ -644,7 +641,7 @@ then
    echo -n "Creating a "${REALM^}" Intermediate CA request .. "
    test -f "${ISSUING_CA_REQUEST}" && mv "${ISSUING_CA_REQUEST}" "${ISSUING_CA_REQUEST}${BACKUP_SUFFIX}"
    make_password "${ISSUING_CA_KEY_PASSWORD}"
-   openssl req -verbose -config "${OPENSSL_CONF}" -subj "/CN='${ISSUING_CA_CERTIFICATE}'" -reqexts v3_ca_reqexts -batch -newkey rsa:$BITS -passout file:"${ISSUING_CA_KEY_PASSWORD}" -keyout "${ISSUING_CA_KEY}" -subj "${ISSUING_CA_SUBJECT}" -out "${ISSUING_CA_REQUEST}"
+   openssl req -verbose -config "${OPENSSL_CONF}" -subj "/CN='${ISSUING_CA_CERTIFICATE}'" -reqexts v3_subca_reqexts -batch -newkey rsa:$BITS -passout file:"${ISSUING_CA_KEY_PASSWORD}" -keyout "${ISSUING_CA_KEY}" -subj "${ISSUING_CA_SUBJECT}" -out "${ISSUING_CA_REQUEST}"
    echo -e "\nIntermediate CSR" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
    echo "openssl req -verbose -config "${OPENSSL_CONF}" -subj "/CN=${ISSUING_CA_CERTIFICATE}" -reqexts v3_ca_reqexts -batch -newkey rsa:$BITS -passout file:"${ISSUING_CA_KEY_PASSWORD}" -keyout "${ISSUING_CA_KEY}" -subj "${ISSUING_CA_SUBJECT}" -out "${ISSUING_CA_REQUEST}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
    echo "done."
@@ -1590,7 +1587,7 @@ rm -rf ${BASE_DIR}/config.d/realm/democa
 
 echo "Restarting Server."
 openxpkictl stop
-sleep 3;
+sleep 10;
 openxpkictl start
 sleep 1;
 }
