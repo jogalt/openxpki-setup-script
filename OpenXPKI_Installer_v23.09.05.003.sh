@@ -1451,6 +1451,7 @@ openxpkiadm_root () {
 echo -e "\nImporting Root Certificate.."
 echo "openxpkiadm alias --token root --file "${ROOT_CA_CERTIFICATE}" --realm "${REALM}" --config "${CONF_DIR}"" >> ${BASE_DIR}/ca/"${REALM}"/openxpkiadmCommands.txt
 openxpkiadm alias --token root --file "${ROOT_CA_CERTIFICATE}" --realm "${REALM}" --config "${CONF_DIR}"
+echo "Imported Root CA."
 }
 
 openxpkiadm_dv () {
@@ -1458,12 +1459,8 @@ openxpkiadm_dv () {
 echo -e "\nImporting Datavault Certificate: ${DATAVAULT_CERTIFICATE}"
 echo "openxpkiadm alias --token datasafe --file "${DATAVAULT_CERTIFICATE}" --key "${vault_dir}${REALM}"/vault-1.pem --realm "${REALM}" --config "${CONF_DIR}"" >> ${BASE_DIR}/ca/"${REALM}"/openxpkiadmCommands.txt
 openxpkiadm alias --token datasafe --file "${DATAVAULT_CERTIFICATE}" --key "${vault_dir}${REALM}"/vault-1.pem --realm "${REALM}" --config "${CONF_DIR}"
-# openxpkictl start
-sleep 5;
-# echo -e "\nRegistering Datavault Certificate ${DATAVAULT_CERTIFICATE} as datasafe token.."
-# echo "openxpkiadm alias --file "${DATAVAULT_CERTIFICATE}" --realm "${REALM}" --token datasafe --config "${CONF_DIR}"" >> openxpkiadmCommands.txt
-# openxpkiadm alias --realm "${REALM}" --token datasafe --file "${DATAVAULT_CERTIFICATE}" --key /etc/openxpki/local/keys/${REALM}/vault-1.pem
 sleep 1;
+echo "Imported Datavault."
 }
 
 # Keys NEED to be added to keys directory before these commands happen or the import fails
@@ -1471,20 +1468,21 @@ openxpkiadm_issue () {
 echo "Importing Intermediate Certificate and put key in keys directory.."
 echo "openxpkiadm alias --token certsign --file "${ISSUING_CA_CERTIFICATE}" --realm "${REALM}" --key "${ISSUING_CA_KEY}"" >> ${BASE_DIR}/ca/"${REALM}"/openxpkiadmCommands.txt
 openxpkiadm alias --token certsign --file "${ISSUING_CA_CERTIFICATE}" --realm "${REALM}" --key "${ISSUING_CA_KEY}" --config "${CONF_DIR}"
+echo "Imported Intermediate CA."
 }
 
 # Keys NEED to be added to keys directory before these commands happen or the import fails
 openxpkiadm_scep () {
 echo "openxpkiadm alias --token scep --file "${SCEP_CERTIFICATE}" --realm "${REALM}"  --key "${SCEP_KEY}" --config "${CONF_DIR}"" >> ${BASE_DIR}/ca/"${REALM}"/openxpkiadmCommands.txt
 openxpkiadm alias --token scep --file "${SCEP_CERTIFICATE}" --realm "${REALM}"  --key "${SCEP_KEY}" --config "${CONF_DIR}"
-echo -e "Done.\n"
+echo "Imported Scep."
 }
 
 # Keys NEED to be added to keys directory before these commands happen or the import fails
 openxpkiadm_ratoken () {
 echo "openxpkiadm alias --token cmcra --file "${RATOKEN_CERTIFICATE}" --realm "${REALM}" --key "${RATOKEN_KEY}" --config "${CONF_DIR}"" >> ${BASE_DIR}/ca/"${REALM}"/openxpkiadmCommands.txt
 openxpkiadm alias --token cmcra --file "${RATOKEN_CERTIFICATE}" --realm "${REALM}" --key "${RATOKEN_KEY}" --config "${CONF_DIR}"
-echo -e "Done.\n"
+echo "Imported RA Token."
 }
 
 update_default_configs () {
