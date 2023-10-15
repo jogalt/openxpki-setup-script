@@ -191,8 +191,8 @@ while IFS= read -r -s -n1 pass; do
      password+=$pass
   fi
 done
-salt=`openssl rand 16 | base64`
-pass2=`echo $password | argon2 $salt -id -k 32768 -t 3 -v 13 -p 1 | grep Encoded | awk '{print$2}'`
+salt=`openssl rand 24 | base64`
+pass2=`echo $password | argon2 $salt -id -k 32768 -t 3 -p 1 -l 16 -e`
 }
 
 
@@ -1700,19 +1700,21 @@ if [ $v_new_user_role == "CA" ] || [ $v_new_user_role == "RA" ]; then
 	userFile='/home/pkiadm/admindb.yaml'
 	if [ ! -f $userFile ]; then
     touch $userFile
+	chown -R openxpki:openxpki $userFile
 	fi
 #	echo $v_new_user $v_new_user_saltPass $v_new_user_role 
 	echo "$v_new_user:
-    digest: $pass2
+    digest: "'"$pass2"'"
     role: $v_new_user_role Operator" >> $userFile
 fi
 if [ $v_new_user_role == "User" ]; then
 	userFile='/home/pkiadm/userdb.yaml'
 	if [ ! -f $userFile ]; then
     touch $userFile
+	chown -R openxpki:openxpki $userFile
 	fi
 	echo "$v_new_user:
-    digest: $pass2
+    digest: "'"$pass2"'"
     role: $v_new_user_role" >> $userFile
 fi
 create_new_user
