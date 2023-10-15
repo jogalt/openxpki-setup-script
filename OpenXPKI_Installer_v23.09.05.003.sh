@@ -536,7 +536,7 @@ emailAddress_max        = 64
 subjectKeyIdentifier    = hash
 keyUsage                = digitalSignature, keyCertSign, cRLSign
 
-[ v3_subca_reqexts ]
+[ v3_ca_reqexts ]
 ubjectKeyIdentifier     = hash
 keyUsage                = digitalSignature, keyCertSign, cRLSign
 extendedKeyUsage        = cmcCA
@@ -642,7 +642,7 @@ then
    echo -n "Creating a "${REALM^}" Intermediate CA request .. "
    test -f "${ISSUING_CA_REQUEST}" && mv "${ISSUING_CA_REQUEST}" "${ISSUING_CA_REQUEST}${BACKUP_SUFFIX}"
    make_password "${ISSUING_CA_KEY_PASSWORD}"
-   openssl req -verbose -config "${OPENSSL_CONF}" -subj "/CN='${ISSUING_CA_CERTIFICATE}'" -reqexts v3_subca_reqexts -batch -newkey rsa:$BITS -passout file:"${ISSUING_CA_KEY_PASSWORD}" -keyout "${ISSUING_CA_KEY}" -subj "${ISSUING_CA_SUBJECT}" -out "${ISSUING_CA_REQUEST}"
+   openssl req -verbose -config "${OPENSSL_CONF}" -subj "/CN='${ISSUING_CA_CERTIFICATE}'" -reqexts v3_ca_reqexts -batch -newkey rsa:$BITS -passout file:"${ISSUING_CA_KEY_PASSWORD}" -keyout "${ISSUING_CA_KEY}" -subj "${ISSUING_CA_SUBJECT}" -out "${ISSUING_CA_REQUEST}"
    echo -e "\nIntermediate CSR" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
    echo "openssl req -verbose -config "${OPENSSL_CONF}" -subj "/CN=${ISSUING_CA_CERTIFICATE}" -reqexts v3_ca_reqexts -batch -newkey rsa:$BITS -passout file:"${ISSUING_CA_KEY_PASSWORD}" -keyout "${ISSUING_CA_KEY}" -subj "${ISSUING_CA_SUBJECT}" -out "${ISSUING_CA_REQUEST}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
    echo "done."
