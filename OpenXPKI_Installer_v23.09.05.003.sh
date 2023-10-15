@@ -1563,11 +1563,13 @@ chown -R openxpki:openxpki /etc/openxpki
     # label: System
 # " >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/roles.yaml
 
+echo "updating the Realm default profile."
 DomainName=`hostname -d`
 # Edit the issuing profiles under realm 
 sed -i 's|pki.example.com|"${FQDN,,}"|g' ${BASE_DIR}/config.d/realm/${REALM}/profile/default.yaml
 sed -i 's|ocsp.example.com|"ocsp.${DomainName,,}"|g' ${BASE_DIR}/config.d/realm/${REALM}/profile/default.yaml
 
+echo "updating the Server default scep, est and rpc confs"
 #Add the new realm to the configs for rpc, scep and est
 sed -i 's|realm = democa|realm = "${REALM}"|g' ${BASE_DIR}/scep/default.conf
 sed -i 's|realm = democa|realm = "${REALM}"|g' ${BASE_DIR}/est/default.conf
@@ -1575,13 +1577,22 @@ sed -i 's|realm = democa|realm = "${REALM}"|g' ${BASE_DIR}/rpc/default.conf
 sed -i 's|realm = democa|realm = "${REALM}"|g' ${BASE_DIR}/rpc/public.conf
 sed -i 's|realm = democa|realm = "${REALM}"|g' ${BASE_DIR}/rpc/enroll.conf
 
-
+echo "Removing the democa from the realms file."
 #Remove democa CA realm
 sed -i '/democa/d' ${BASE_DIR}/config.d/system/realms.yaml
 sed -i '/[Ee]xample/d' ${BASE_DIR}/config.d/system/realms.yaml
 
 #Clean up the spaces before continuing
 sed -i '/^[[:space:]]*$/d' ${BASE_DIR}/config.d/system/realms.yaml
+
+echo "Removing the democa realm directory."
+rm -rf ${BASE_DIR}/config.d/realm/democa
+
+echo "Restarting Server."
+openxpkictl stop
+sleep 3;
+openxpkictl start
+sleep 1;
 }
 
 #Verify Ownership
