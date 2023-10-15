@@ -824,7 +824,8 @@ apt install argon2 gnupg* -y
 echo "GnuPG installed."
 echo "Done"
 echo "Retrieving OpenXPKI package key and verifying."
-wget https://packages.openxpki.org/v3/debian/Release.key -O - | apt-key add -
+wget https://packages.openxpki.org/v3/debian/Release.key -O - 2>/dev/null | tee Release.key | gpg -o /usr/share/keyrings/openxpki.pgp --dearmor
+#wget https://packages.openxpki.org/v3/debian/Release.key -O - | apt-key add -
 #
 echo "Adding OpenXPKI to sources."
 echo -e "Types: deb\nURIs: https://packages.openxpki.org/v3/bookworm/\nSuites: bookworm\nComponents: release\nSigned-By: /usr/share/keyrings/openxpki.pgp" > /etc/apt/sources.list.d/openxpki.sources
