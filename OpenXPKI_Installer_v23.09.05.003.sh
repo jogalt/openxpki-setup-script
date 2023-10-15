@@ -1731,6 +1731,7 @@ echo ""
 echo "Restarting Server to apply the new user."
 echo "Add the digest to the correct user in the userdb file."
 openxpkictl stop
+sleep 3;
 openxpkictl start
 create_new_user
 }
