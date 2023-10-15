@@ -276,7 +276,7 @@ make_password() {
 
 }
 
-define_certificates () {
+define_certificates() {
 #
 # CA and certificate settings
 #
@@ -396,13 +396,8 @@ echo "Continuing with configuration!"
 echo "Checking if Realm Config Directory exists."
 
 #Add the new realm to the configs for rpc, scep and est
-cd ${BASE_DIR}
-find . -type f -not -path '*/\.*' -exec sed -i 's|realm = democa|realm = "${REALM}"|g' {} +
-
-DomainName=`hostname -d`
-# Edit the issuing profiles under realm 
-grep -rl 'pki.example.com' /etc/openxpki/config.d/"${REALM}" | sed -i 's|pki.example.com|"${FQDN,,}"|g'
-grep -rl 'pki.example.com' /etc/openxpki/config.d/"${REALM}" | sed -i 's|ocsp.example.com|"ocsp.${DomainName,,}"|g'
+#cd ${BASE_DIR}
+#find . -type f -not -path '*/\.*' -exec sed -i 's|realm = democa|realm = "${REALM}"|g' {} +
 
 #Remove democa CA realm
 sed -i '/democa/d' ${BASE_DIR}/config.d/system/realms.yaml
@@ -485,31 +480,31 @@ echo $(date +%Y%m%d%H%M)"0001" >> "${OPENSSL_DIR}/serial"
 
 echo "
 HOME			= .
-RANDFILE		= /var/openxpki/rand
+RANDFILE                 = /var/openxpki/rand
 
 [ ca ]
-default_ca		= CA_default
+default_ca               = CA_default
 
 [ req ]
-default_bits		= ${BITS}
-distinguished_name	= req_distinguished_name
+default_bits             = ${BITS}
+distinguished_name       = req_distinguished_name
 
 [ CA_default ]
-dir			= ${OPENSSL_DIR}
-certs			= ${OPENSSL_DIR}/certs
-crldir			= ${OPENSSL_DIR}/
-database		= ${OPENSSL_DIR}/index.txt
-new_certs_dir		= ${OPENSSL_DIR}/
-serial			= ${OPENSSL_DIR}/serial
-crlnumber		= ${OPENSSL_DIR}/crlnumber
-crl			= ${OPENSSL_DIR}/crl.pem
-private_key		= ${OPENSSL_DIR}/cakey.pem
-RANDFILE		= ${OPENSSL_DIR}/.rand
-default_md		= sha3-512
-preserve		= no
-policy			= policy_match
-default_days		= ${DAYS}
-email_in_dn		= no
+dir                     = ${OPENSSL_DIR}
+certs                   = ${OPENSSL_DIR}/certs
+crldir                  = ${OPENSSL_DIR}/
+database                = ${OPENSSL_DIR}/index.txt
+new_certs_dir           = ${OPENSSL_DIR}/
+serial                  = ${OPENSSL_DIR}/serial
+crlnumber               = ${OPENSSL_DIR}/crlnumber
+crl                     = ${OPENSSL_DIR}/crl.pem
+private_key             = ${OPENSSL_DIR}/cakey.pem
+RANDFILE                = ${OPENSSL_DIR}/.rand
+default_md              = sha3-512
+preserve                = no
+policy                  = policy_match
+default_days            = ${DAYS}
+email_in_dn             = no
 countryName_default     = "${COUNTRY}"
 stateOrProvinceName_default     = "${STATE}"
 0.organizationName_default      = "${REALM}"
@@ -530,30 +525,35 @@ emailAddress	       	= supplied
 # x509_extensions               = v3_web_reqexts
 
 [ req_distinguished_name ]
-countryName		= Country Name (2 letter code)
-countryName_default	= "${COUNTRY}"
+countryName             = Country Name (2 letter code)
+countryName_default     = "${COUNTRY}"
 
-stateOrProvinceName 	= State or Province Name (full name)
+stateOrProvinceName     = State or Province Name (full name)
 stateOrProvinceName_default	= "${STATE}"
 
-localityName		= Locality Name (eg, city)
-0.localityName_default      = "${LOCALITY}"
+localityName            = Locality Name (eg, city)
+0.localityName_default  = "${LOCALITY}"
 
-0.organizationName	= Organization Name (eg, company)
-0.organizationName_default	= "${REALM}"
+0.organizationName      = Organization Name (eg, company)
+0.organizationName_default   = "${REALM}"
 
-0.organizationUnitName	= Organization Unit Name (eg, section)
-0.organizationUnitName_default	= "${OrgU}"
+0.organizationUnitName  = Organization Unit Name (eg, section)
+0.organizationUnitName_default  = "${OrgU}"
 
-commonName		= Common Name (eg, YOUR name)
-commonName_max		= 64
+commonName              = Common Name (eg, YOUR name)
+commonName_max          = 64
 
-emailAddress		= Email Address
-emailAddress_max	= 64
+emailAddress            = Email Address
+emailAddress_max        = 64
 
 [ v3_ca_reqexts ]
 subjectKeyIdentifier    = hash
 keyUsage                = digitalSignature, keyCertSign, cRLSign
+
+[ v3_subca_reqexts ]
+ubjectKeyIdentifier     = hash
+keyUsage                = digitalSignature, keyCertSign, cRLSign
+extendedKeyUsage        = cmcCA
 
 [ v3_datavault_reqexts ]
 subjectKeyIdentifier    = hash
@@ -598,16 +598,17 @@ authorityKeyIdentifier  = keyid,issuer
 [ v3_ratoken_extensions ]
 subjectKeyIdentifier    = hash
 basicConstraints        = CA:FALSE
-extendedKeyUsage        = cmcRA, digitalSignature
+keyUsage                = critical, digitalSignature, keyEncipherment
+extendedKeyUsage        = cmcRA, serverAuth
 
 [ v3_web_extensions ]
 subjectKeyIdentifier    = hash
 keyUsage                = critical, digitalSignature, keyEncipherment
 extendedKeyUsage        = serverAuth, clientAuth
 basicConstraints        = critical,CA:FALSE
-subjectAltName		= DNS:"${FQDN}"
-crlDistributionPoints	= "${ISSUING_REVOCATION_URI}"
-authorityInfoAccess	= caIssuers;"${ISSUING_CERTIFICATE_URI}"
+subjectAltName          = DNS:"${FQDN}"
+crlDistributionPoints   = "${ISSUING_REVOCATION_URI}"
+authorityInfoAccess	    = caIssuers;"${ISSUING_CERTIFICATE_URI}"
 " > "${OPENSSL_CONF}"
 
 echo "Done."
@@ -1530,7 +1531,7 @@ Anonymous:
     description: Access for guests without credentials.
     handler: Anonymous
     type: anon
-	
+
 # Regular login for users via an external password database defined
 # in handler.yaml as "Production"
 Production:
@@ -1573,6 +1574,11 @@ chown -R openxpki:openxpki /etc/openxpki
 # System:
     # label: System
 # " >> "${BASE_DIR}"/config.d/realm/"${REALM}"/auth/roles.yaml
+
+DomainName=`hostname -d`
+# Edit the issuing profiles under realm 
+grep -rl 'pki.example.com' /etc/openxpki/config.d/"${REALM}" | sed -i 's|pki.example.com|"${FQDN,,}"|g'
+grep -rl 'pki.example.com' /etc/openxpki/config.d/"${REALM}" | sed -i 's|ocsp.example.com|"ocsp.${DomainName,,}"|g'
 }
 
 #Verify Ownership
@@ -1693,6 +1699,7 @@ add_new_user () {
 echo "Enter new user name."
 echo ""
 read v_new_user
+echo "Enter password, carefully"
 create_argon
 # Add new user details to the userdb or admindb
 if [ $v_new_user_role == "CA" ] || [ $v_new_user_role == "RA" ]; then
@@ -1703,7 +1710,7 @@ if [ $v_new_user_role == "CA" ] || [ $v_new_user_role == "RA" ]; then
 	fi
 #	echo $v_new_user $v_new_user_saltPass $v_new_user_role 
 	echo "$v_new_user:
-    digest: "'"$pass2"'"
+    digest: "'"${pass2}"'"
     role: $v_new_user_role Operator" >> $userFile
 fi
 if [ $v_new_user_role == "User" ]; then
@@ -1713,9 +1720,12 @@ if [ $v_new_user_role == "User" ]; then
 	chown -R openxpki:openxpki $userFile
 	fi
 	echo "$v_new_user:
-    digest: "'"$pass2"'"
+    digest: "'"${pass2}"'"
     role: $v_new_user_role" >> $userFile
 fi
+# While using local userdb/admindb, openX needs to restart to pull in DB
+# during the startup process, else users can't login.
+openxpkictl restart
 create_new_user
 }
 
