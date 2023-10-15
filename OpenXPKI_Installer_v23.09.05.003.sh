@@ -1735,15 +1735,16 @@ fi
 echo ""
 echo "Restarting Server to apply the new user."
 echo "Add the digest to the correct user in the userdb file."
-openxpkictl restart
+openxpkictl stop
+openxpkictl start
 create_new_user
 }
 
 create_new_user () {
 PS3="Select user role.  "
-select role in Create_Hash Certificate_Authority Registration_Authority User Quit; do
+select role in Run_First_Create_Hash Certificate_Authority Registration_Authority User Quit; do
 case $role in
-Create_Hash)
+Run_First_Create_Hash)
  echo "Run the following command to get your digest,"
  echo "then run the script again."
  echo "openxpkiadm hashpwd -s argon2"
