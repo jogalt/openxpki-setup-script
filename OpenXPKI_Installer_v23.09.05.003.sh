@@ -471,7 +471,7 @@ echo $(date +%Y%m%d%H%M)"0001" >> "${OPENSSL_DIR}/serial"
 
 echo "
 HOME                    = .
-RANDFILE                = /var/openxpki/rand
+RANDFILE                = \$ENV::HOME/.rnd
 
 [ ca ]
 default_ca              = CA_default
