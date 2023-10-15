@@ -370,10 +370,11 @@ DATAVAULT_SUBJECT="/emailAddress=${v_EMAIL}/C=${COUNTRY^^}/ST=${STATE^^}/L=${LOC
   if [ $import_xpki_DV == "1" ]; then
   echo "${DATAVAULT_SUBJECT}"
   fi
-
+DomainName=`hostname -d`
 # Define Root and Intermediate authorityInfoAccess and crlDistributionPoints
 ROOT_CA_CERTIFICATE_URI="URI"':''http://'"${FQDN}"'/download/'"${ROOT_CA}"'.cer'
 ROOT_CA_REVOCATION_URI="URI"':''http://'"${FQDN}"'/download/'"${ROOT_CA}"'.crl'
+ROOT_CA_OCSP_URI="URI"':''http://'ocsp."${DomainName}"''
 ISSUING_CERTIFICATE_URI="URI"':''http://'"${FQDN}"'/download/'"${ISSUING_CA}"'.cer'
 ISSUING_REVOCATION_URI="URI"':''http://'"${FQDN}"'/download/'"${ISSUING_CA}"'.crl'
 }
@@ -558,8 +559,6 @@ subjectKeyIdentifier    = hash
 keyUsage                = digitalSignature, keyCertSign, cRLSign
 basicConstraints        = critical,CA:TRUE
 authorityKeyIdentifier  = keyid:always,issuer:always
-crlDistributionPoints	= "${ROOT_CA_REVOCATION_URI}"
-authorityInfoAccess	    = caIssuers;"${ROOT_CA_CERTIFICATE_URI}"
 
 [ v3_issuing_extensions ]
 subjectKeyIdentifier    = hash
@@ -568,6 +567,7 @@ basicConstraints        = critical,CA:TRUE
 authorityKeyIdentifier  = keyid:always,issuer:always
 crlDistributionPoints	= "${ROOT_CA_REVOCATION_URI}"
 authorityInfoAccess     = caIssuers;"${ROOT_CA_CERTIFICATE_URI}"
+authorityInfoAccess     = OCSP;"${ROOT_CA_OCSP_URI}"
 extendedKeyUsage        = cmcCA
 
 [ v3_datavault_extensions ]
@@ -596,6 +596,7 @@ basicConstraints        = critical,CA:FALSE
 subjectAltName          = DNS:"${FQDN}"
 crlDistributionPoints   = "${ISSUING_REVOCATION_URI}"
 authorityInfoAccess	    = caIssuers;"${ISSUING_CERTIFICATE_URI}"
+authorityInfoAccess     = OCSP;"${ROOT_CA_OCSP_URI}"
 " > "${OPENSSL_CONF}"
 
 echo "Done."
@@ -625,10 +626,10 @@ then
    test -f "${ROOT_CA_KEY_PASSWORD}" && \
     mv "${ROOT_CA_KEY_PASSWORD}" "${ROOT_CA_KEY_PASSWORD}${BACKUP_SUFFIX}"
    make_password "${ROOT_CA_KEY_PASSWORD}"
-   openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_ca_extensions -batch -x509 -newkey rsa:$BITS -days ${RDAYS} -passout file:"${ROOT_CA_KEY_PASSWORD}" -keyout "${ROOT_CA_KEY}" -subj "${ROOT_CA_SUBJECT}" -out "${ROOT_CA_CERTIFICATE}"
+   openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_ca_extensions -batch -x509 -sha3-512 -newkey rsa:$BITS -days ${RDAYS} -passout file:"${ROOT_CA_KEY_PASSWORD}" -keyout "${ROOT_CA_KEY}" -subj "${ROOT_CA_SUBJECT}" -out "${ROOT_CA_CERTIFICATE}"
    echo "Putting the certificate commands into certificateCommands.txt"
    echo "Putting the certificate commands into certificateCommands.txt" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
-   echo "openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_ca_extensions -batch -x509 -newkey rsa:$BITS -days ${RDAYS} -passout file:"${ROOT_CA_KEY_PASSWORD}" -keyout "${ROOT_CA_KEY}" -subj "${ROOT_CA_SUBJECT}" -out "${ROOT_CA_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
+   echo "openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_ca_extensions -batch -x509 -sha3-512 -newkey rsa:$BITS -days ${RDAYS} -passout file:"${ROOT_CA_KEY_PASSWORD}" -keyout "${ROOT_CA_KEY}" -subj "${ROOT_CA_SUBJECT}" -out "${ROOT_CA_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
    echo "Done."
 fi;
 }
