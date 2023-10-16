@@ -990,7 +990,7 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
 	cgi_session_db_user="openxpki_cgiSession_user"
     cgi_session_db_pass=`openssl rand 50 | base64`
 	ROOT_PW="Enter_Root_Pass"
-	echo "Enter the IP of the remote database"
+	echo "Enter the IP or hostname of the remote database."
 	read input_db_external_IP
 	echo "Enter the port of the remote database"
 	read input_db_external_Port
@@ -1002,7 +1002,15 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
 	echo ""
 	$debug mysql -u root -p"${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'%';"
 	echo ""
-	cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u root -p"${ROOT_PW}" --database  "${input_db_name}"
+	echo "Type: 'Continue' after you've created the database."
+	echo ""
+	read input_db_continue
+	while [ $input_db_continue != "Continue" ]
+	do
+		echo "Type: 'Continue' after you've created the database."
+		read input_db_continue
+	done
+	cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u "${input_db_name}" -p"${input_db_pass}" -h "${input_db_external_IP}"--database  "${input_db_name}"
 	
 	#Store credentials in /etc/openxpki/config.d/system/database.yaml
     sed -i "s^name:.*^name: ${input_db_name}^g" ${DATABASE_DIR}
