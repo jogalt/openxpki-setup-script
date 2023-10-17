@@ -844,6 +844,7 @@ select db in MariaDB External_MariaDB_Manual External_MariaDB_Automatic Exit; do
         break
         ;;
 	  External_MariaDB_Manual)
+	    apt install mariadb-client libdbd-mariadb-perl libdbd-mysql-perl -y
 	    echo "Configure your external DB with the following parameters."
 	    echo ""
 		input_db_external=1
@@ -852,6 +853,7 @@ select db in MariaDB External_MariaDB_Manual External_MariaDB_Automatic Exit; do
 	    break
 	    ;;
       External_MariaDB_Automatic)
+	    apt install mariadb-client libdbd-mariadb-perl libdbd-mysql-perl -y
 	    echo "Configure your external DB with the following parameters."
 	    echo ""
 		input_db_external=1
@@ -984,6 +986,12 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
 	
 	#Create credentials for external DB and show the user what to configure.
     DATABASE_DIR="${BASE_DIR}/config.d/system/database.yaml"
+	echo ""
+	echo "Are you connecting to a Galera Cluster? Yes or No"
+	read input_db_galera_yn
+	if [ ${input_db_galera_yn,,} == "yes" ] || if [ ${input_db_galera_yn,,} == "y" ]; then
+	sed -i 's|START WITH 0 INCREMENT BY 1|START WITH 0 INCREMENT BY 0|g' /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql
+	fi
 	input_db_name="openxpki"
     input_db_user="openxpki"
 	input_db_pass=`openssl rand 50 | base64`
@@ -1010,7 +1018,7 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
 		echo "Type: 'Continue' after you've created the database."
 		read input_db_continue
 	done
-	cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u "${input_db_name}" -p"${input_db_pass}" -h "${input_db_external_IP}"--database  "${input_db_name}"
+	cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u "${input_db_name}" -p"${input_db_pass}" -h "${input_db_external_IP}" --database  "${input_db_name}"
 	
 	#Store credentials in /etc/openxpki/config.d/system/database.yaml
     sed -i "s^name:.*^name: ${input_db_name}^g" ${DATABASE_DIR}
@@ -1026,11 +1034,11 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
     echo "Your admin database credentials potentially being exposed."
     echo ""
     echo "CREATE USER ${cgi_session_db_user}"
-    $debug mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'%' IDENTIFIED BY '"${cgi_session_db_pass}"';"
+    $debug mysql -u "${input_db_name}" -p"${input_db_pass}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'%' IDENTIFIED BY '"${cgi_session_db_pass}"';"
 
     # Grant privileges to cgi user for frontend
     echo "Granting SELECT, INSERT, UPDATE, DELETE ON on ""${input_db_name}".frontend_session "to: ""${cgi_session_db_user}"
-    $debug mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
+    $debug mysql -u "${input_db_name}" -p"${input_db_pass}" -e "FLUSH PRIVILEGES;"
 	echo ""
 	echo ""
 	
@@ -1043,6 +1051,11 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "1" ]; then
 	
 	#Create credentials for external DB and show the user what to configure.
     DATABASE_DIR="${BASE_DIR}/config.d/system/database.yaml"
+	echo "Are you connecting to a Galera Cluster? Yes or No"
+	read input_db_galera_yn
+	if [ ${input_db_galera_yn,,} == "yes" ] || if [ ${input_db_galera_yn,,} == "y" ]; then
+	sed -i 's|START WITH 0 INCREMENT BY 1|START WITH 0 INCREMENT BY 0|g' /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql
+	fi
 	input_db_name="openxpki"
     input_db_user="openxpki"
 	input_db_pass=`openssl rand 50 | base64`
