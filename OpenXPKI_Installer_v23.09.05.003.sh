@@ -926,32 +926,32 @@ done
 # Define DB Directory
 DATABASE_DIR="${BASE_DIR}/config.d/system/database.yaml"
 
-# Harden initial mysql installation
+# Harden initial mariadb installation
 echo "Beginning MariaDB Secure installation..."
-mysql -u root -p"${ROOT_PW}" -e "SET PASSWORD FOR root@localhost = PASSWORD('"${ROOT_PW}"');FLUSH PRIVILEGES;"
+mariadb -u root -p"${ROOT_PW}" -e "SET PASSWORD FOR root@localhost = PASSWORD('"${ROOT_PW}"');FLUSH PRIVILEGES;"
 echo "Removing Anonymous user."
-mysql -u root -p"${ROOT_PW}" -e "DELETE FROM mysql.user WHERE User='';"
-mysql -u root -p"${ROOT_PW}" -e "DROP USER IF EXISTS ''@'localhost'"
-mysql -u root -p"${ROOT_PW}" -e "DROP USER IF EXISTS ''@'$(hostname)'"
+mariadb -u root -p"${ROOT_PW}" -e "DELETE FROM mysql.user WHERE User='';"
+mariadb -u root -p"${ROOT_PW}" -e "DROP USER IF EXISTS ''@'localhost'"
+mariadb -u root -p"${ROOT_PW}" -e "DROP USER IF EXISTS ''@'$(hostname)'"
 echo "Dropped anonymous user."
-mysql -u root -p"${ROOT_PW}" -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
+mariadb -u root -p"${ROOT_PW}" -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
 echo "Disable remote Root Authentication."
-mysql -u root -p"${ROOT_PW}" -e "DROP DATABASE IF EXISTS test"
+mariadb -u root -p"${ROOT_PW}" -e "DROP DATABASE IF EXISTS test"
 echo "Dropping test DB"
-mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
+mariadb -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
 
 # Create initial pki database
 echo -e "Initializing Database...\n"
-mysql -u root -p"${ROOT_PW}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;"
+mariadb -u root -p"${ROOT_PW}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;"
 echo "Database: ""${input_db_name}"  "created."
-mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'localhost' IDENTIFIED BY '"${input_db_pass}"';"
+mariadb -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'localhost' IDENTIFIED BY '"${input_db_pass}"';"
 echo "User: ""${input_db_user}"  "created."
 echo "Granting permissions on ""${input_db_name}" "to: ""${input_db_user}"
-mysql -u root -p"${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'localhost';"
+mariadb -u root -p"${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'localhost';"
 
 #Create database schema
 echo "Copying database template to Server."
-cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u root -p"${ROOT_PW}" --database  "${input_db_name}"
+cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mariadb -u root -p"${ROOT_PW}" --database  "${input_db_name}"
 
 #Store credentials in /etc/openxpki/config.d/system/database.yaml
 sed -i "s^name:.*^name: ${input_db_name}^g" ${DATABASE_DIR}
@@ -970,12 +970,12 @@ echo "This is a limited user that interacts with the cgiSession and helps preven
 echo "Your admin database credentials potentially being exposed."
 echo ""
 echo "CREATE USER ${cgi_session_db_user}"
-mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'localhost' IDENTIFIED BY '"${cgi_session_db_pass}"';"
+mariadb -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'localhost' IDENTIFIED BY '"${cgi_session_db_pass}"';"
 
 # Grant privileges to cgi user for frontend
 echo "Granting SELECT, INSERT, UPDATE, DELETE ON on ""${input_db_name}".frontend_session "to: ""${cgi_session_db_user}"
-mysql -u root -p"${ROOT_PW}" -e "GRANT SELECT, INSERT, UPDATE, DELETE ON "${input_db_name}".frontend_session TO "${cgi_session_db_user}"@'localhost';"
-mysql -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
+mariadb -u root -p"${ROOT_PW}" -e "GRANT SELECT, INSERT, UPDATE, DELETE ON "${input_db_name}".frontend_session TO "${cgi_session_db_user}"@'localhost';"
+mariadb -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
 
 fi
 
@@ -1004,11 +1004,11 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
 	read input_db_external_Port
 	echo "Run these commands on your external database to prepare for operations."
 	echo ""
-	$debug mysql -u root -p"${ROOT_PW}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;"
+	$debug mariadb -u root -p"${ROOT_PW}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;"
 	echo ""
-	$debug mysql -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'%' IDENTIFIED BY '"${input_db_pass}"';"
+	$debug mariadb -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'%' IDENTIFIED BY '"${input_db_pass}"';"
 	echo ""
-	$debug mysql -u root -p"${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'%';"
+	$debug mariadb -u root -p"${ROOT_PW}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'%';"
 	echo ""
 	echo "Type: 'Continue' after you've created the database."
 	echo ""
@@ -1018,7 +1018,7 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
 		echo "Type: 'Continue' after you've created the database."
 		read input_db_continue
 	done
-	cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u "${input_db_name}" -p"${input_db_pass}" -h "${input_db_external_IP}" --database  "${input_db_name}"
+	cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mariadb -u "${input_db_name}" -p"${input_db_pass}" -h "${input_db_external_IP}" --database  "${input_db_name}"
 	
 	#Store credentials in /etc/openxpki/config.d/system/database.yaml
     sed -i "s^name:.*^name: ${input_db_name}^g" ${DATABASE_DIR}
@@ -1034,11 +1034,12 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
     echo "Your admin database credentials potentially being exposed."
     echo ""
     echo "CREATE USER ${cgi_session_db_user}"
-    $debug mysql -u "${input_db_name}" -p"${input_db_pass}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'%' IDENTIFIED BY '"${cgi_session_db_pass}"';"
+    $debug mariadb -u root -p"${ROOT_PW}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'%' IDENTIFIED BY '"${cgi_session_db_pass}"';"
 
     # Grant privileges to cgi user for frontend
-    echo "Granting SELECT, INSERT, UPDATE, DELETE ON on ""${input_db_name}".frontend_session "to: ""${cgi_session_db_user}"
-    $debug mysql -u "${input_db_name}" -p"${input_db_pass}" -e "FLUSH PRIVILEGES;"
+    echo "Grant SELECT, INSERT, UPDATE, DELETE ON on ""${input_db_name}".frontend_session "to: ""${cgi_session_db_user}"
+	$debug mariadb -u root -p"${ROOT_PW}" -e "GRANT SELECT, INSERT, UPDATE, DELETE ON "${input_db_name}".frontend_session TO "${cgi_session_db_user}"@'%';"
+    $debug mariadb -u root -p"${ROOT_PW}" -e "FLUSH PRIVILEGES;"
 	echo ""
 	echo ""
 	
@@ -1071,16 +1072,16 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "1" ]; then
 	read input_db_external_Port
 	echo "Run these commands on your external database to prepare for operations."
 	echo ""
-	while ! mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e ";" ; do
+	while ! mariadb -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e ";" ; do
        read -s -p "Can't connect, please retry: " DB_ADMIN_PASSWORD
     done
-	mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;"
+	mariadb -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "CREATE DATABASE IF NOT EXISTS "${input_db_name}" CHARSET utf8;"
 	echo ""
-	mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'%' IDENTIFIED BY '"${input_db_pass}"';"
+	mariadb -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "CREATE USER IF NOT EXISTS '"${input_db_user}"'@'%' IDENTIFIED BY '"${input_db_pass}"';"
 	echo ""
-	mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'%';"
+	mariadb -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "GRANT ALL PRIVILEGES ON "${input_db_name}".* TO '"${input_db_user}"'@'%';"
 	echo ""
-	cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" --database  "${input_db_name}"
+	cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mariadb -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" --database  "${input_db_name}"
 	
 	#Store credentials in /etc/openxpki/config.d/system/database.yaml
     sed -i "s^name:.*^name: ${input_db_name}^g" ${DATABASE_DIR}
