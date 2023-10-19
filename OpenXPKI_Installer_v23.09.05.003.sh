@@ -905,8 +905,8 @@ if [ $input_db_external == "0" ]; then
 ROOT_PW="${input_rootpw_2}"
   while [ "${confirm_db}" != "y" ]
   do
-input_db_name="openxpki"
-input_db_user="openxpki"
+input_db_name="openxpki_dev"
+input_db_user="openxpki_dev"
 #    echo -e "What's the password for the database?\n"
 #    read input_db_pass
 input_db_pass=`openssl rand 50 | base64`
@@ -989,11 +989,12 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
 	echo ""
 	echo "Are you connecting to a Galera Cluster? Yes or No"
 	read input_db_galera_yn
-	if [ ${input_db_galera_yn,,} == "yes" ] || if [ ${input_db_galera_yn,,} == "y" ]; then
-	sed -i 's|START WITH 0 INCREMENT BY 1|START WITH 0 INCREMENT BY 0|g' /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql
+	if [ ${input_db_galera_yn,,} == "yes" ]
+	then
+		sed -i 's|START WITH 0 INCREMENT BY 1|START WITH 0 INCREMENT BY 0|g' /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql
 	fi
-	input_db_name="openxpki"
-    input_db_user="openxpki"
+	input_db_name="openxpki_dev"
+    input_db_user="openxpki_dev"
 	input_db_pass=`openssl rand 50 | base64`
 	cgi_session_db_user="openxpki_cgiSession_user"
     cgi_session_db_pass=`openssl rand 50 | base64`
@@ -1021,11 +1022,12 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
 	cat /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql | mariadb -u "${input_db_name}" -p"${input_db_pass}" -h "${input_db_external_IP}" --database  "${input_db_name}"
 	
 	#Store credentials in /etc/openxpki/config.d/system/database.yaml
-    sed -i "s^name:.*^name: ${input_db_name}^g" ${DATABASE_DIR}
-    sed -i "s^host:.*^host: ${input_db_external_IP}^g" ${DATABASE_DIR}
-	sed -i "s^port:.*^port: ${input_db_external_Port}^g" ${DATABASE_DIR}
-	sed -i "s^user:.*^user: ${input_db_user}^g" ${DATABASE_DIR}
-    sed -i "s^passwd:.*^passwd: ${input_db_pass}^g" ${DATABASE_DIR}
+    sed -i "s|name:.*|name: ${input_db_name}|g" ${DATABASE_DIR}
+    sed -i "s|#host:.*|host: ${input_db_external_IP}|g" ${DATABASE_DIR}
+	sed -i "s|#port:.*|port: ${input_db_external_Port}|g" ${DATABASE_DIR}
+	sed -i "s|user:.*|user: ${input_db_user}|g" ${DATABASE_DIR}
+    sed -i "s|passwd:.*|passwd: ${input_db_pass}|g" ${DATABASE_DIR}
+	sed -i "s|type:.*|type: ${db_type}|g" ${DATABASE_DIR}
 	
 	#Create cgi session credentials for DB
     echo ""
@@ -1054,7 +1056,7 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "1" ]; then
     DATABASE_DIR="${BASE_DIR}/config.d/system/database.yaml"
 	echo "Are you connecting to a Galera Cluster? Yes or No"
 	read input_db_galera_yn
-	if [ ${input_db_galera_yn,,} == "yes" ] || if [ ${input_db_galera_yn,,} == "y" ]; then
+	if [ ${input_db_galera_yn,,} == "yes" ]; then
 	sed -i 's|START WITH 0 INCREMENT BY 1|START WITH 0 INCREMENT BY 0|g' /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql
 	fi
 	input_db_name="openxpki"
@@ -1097,11 +1099,12 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "1" ]; then
     echo "Your admin database credentials potentially being exposed."
     echo ""
     echo "CREATE USER ${cgi_session_db_user}"
-    mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'%' IDENTIFIED BY '"${cgi_session_db_pass}"';"
+    mariadb -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "CREATE USER IF NOT EXISTS "${cgi_session_db_user}"@'%' IDENTIFIED BY '"${cgi_session_db_pass}"';"
 
     # Grant privileges to cgi user for frontend
     echo "Granting SELECT, INSERT, UPDATE, DELETE ON on ""${input_db_name}".frontend_session "to: ""${cgi_session_db_user}"
-    mysql -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "FLUSH PRIVILEGES;"
+	mariadb -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "GRANT SELECT, INSERT, UPDATE, DELETE ON "${input_db_name}".frontend_session TO "${cgi_session_db_user}"@'%';"
+    mariadb -u "${DB_ADMIN_USER}" -p"${DB_ADMIN_PASSWORD}" --host="${input_db_external_IP}" --port="${input_db_external_Port}" -e "FLUSH PRIVILEGES;"
 	echo ""
 	echo ""
 	
