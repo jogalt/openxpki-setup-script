@@ -992,6 +992,9 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
 	if [ ${input_db_galera_yn,,} == "yes" ]
 	then
 		sed -i 's|START WITH 0 INCREMENT BY 1|START WITH 0 INCREMENT BY 0|g' /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql
+		# This was a useless check added into the package. Will eventually be removed and this won't be necessary.
+		# https://github.com/openxpki/openxpki/issues/894
+		sed -i 's|unless ($major >= 10 and $minor >= 3);|unless ($major >= 0 and $minor >= 0);|'g 
 	fi
 	input_db_name="openxpki_dev"
     input_db_user="openxpki_dev"
@@ -1093,6 +1096,7 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "1" ]; then
     sed -i "s^passwd:.*^passwd: ${input_db_pass}^g" ${DATABASE_DIR}
 	
 	#Create cgi session credentials for DB
+    echo ""
     echo ""
     echo "Making additional db login user for the webui CGI session"
     echo "This is a limited user that interacts with the cgiSession and helps prevent"
