@@ -350,7 +350,7 @@ WEB_KEY="${SSL_REALM}/${WEB}.${KEY_SUFFIX}"
 WEB_PEM="${SSL_REALM}/${WEB}.${PEM_SUFFIX}"
 WEB_KEY_PASSWORD="${SSL_REALM}/${WEB}.${PASS_SUFFIX}"
 WEB_CERTIFICATE="${SSL_REALM}/${WEB}.${CERTIFICATE_SUFFIX}"
-WEB_SUBJECT="/emailAddress=${v_EMAIL}/C=${COUNTRY^^}/ST=${STATE^^}/L=${LOCALITY^^}/O=${REALM^^}/OU=${OrgU^^}/${DCFQDN}/CN=${FQDN} Web Cert ${webVer}"
+WEB_SUBJECT="/emailAddress=${v_EMAIL}/C=${COUNTRY^^}/ST=${STATE^^}/L=${LOCALITY^^}/O=${REALM^^}/OU=${OrgU^^}/${DCFQDN}/CN=${FQDN}"
 WEB_SERVER_FQDN="`hostname -f`"
 WEB_SERVER_FQDN="`hostname -f`"
   # Show user the expected output.
@@ -428,16 +428,16 @@ define_openssl () {
 # openssl.conf
 #
 ##Dev
-BITS="2048"
-DVBITS="2048"
-RABITS="2048"
-SCEPBITS="2048"
+BITS="8192"
+DVBITS="16384"
+RABITS="4096"
+SCEPBITS="4096"
 ##Prod
 #BITS="8192"
 #DVBITS="16384" # Customizing Datavault bits for experimenting
 DAYS="397" # 397 days, Setting to 397 since apple said they wouldn't support over 398 days
-RDAYS="7305" # 20 years for root
-IDAYS="5479" # 15 years for issuing
+RDAYS="9875" # 25 years for root
+IDAYS="7300" # 20 years for issuing
 SDAYS="365" # 1 years for scep
 WDAYS="397" # 3 years web
 DDAYS="$RDAYS" # 20 years datavault (same a root)
@@ -482,7 +482,7 @@ crlnumber               = ${OPENSSL_DIR}/crlnumber
 crl                     = ${OPENSSL_DIR}/crl.pem
 private_key             = ${OPENSSL_DIR}/cakey.pem
 RANDFILE                = ${OPENSSL_DIR}/.rand
-default_md              = sha3-512
+default_md              = sha512
 preserve                = no
 policy                  = policy_match
 default_days            = ${DAYS}
@@ -554,7 +554,6 @@ authorityKeyIdentifier  = keyid:always,issuer:always
 crlDistributionPoints	= "${ROOT_CA_REVOCATION_URI}"
 authorityInfoAccess     = caIssuers;"${ROOT_CA_CERTIFICATE_URI}"
 authorityInfoAccess     = OCSP;"${ROOT_CA_OCSP_URI}"
-extendedKeyUsage        = cmcCA
 
 [ v3_datavault_extensions ]
 subjectKeyIdentifier    = hash
@@ -612,10 +611,10 @@ then
    test -f "${ROOT_CA_KEY_PASSWORD}" && \
     mv "${ROOT_CA_KEY_PASSWORD}" "${ROOT_CA_KEY_PASSWORD}${BACKUP_SUFFIX}"
    make_password "${ROOT_CA_KEY_PASSWORD}"
-   openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_ca_extensions -batch -x509 -sha3-512 -newkey rsa:$BITS -days ${RDAYS} -passout file:"${ROOT_CA_KEY_PASSWORD}" -keyout "${ROOT_CA_KEY}" -subj "${ROOT_CA_SUBJECT}" -out "${ROOT_CA_CERTIFICATE}"
+   openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_ca_extensions -batch -x509 -sha512 -newkey rsa:$BITS -days ${RDAYS} -passout file:"${ROOT_CA_KEY_PASSWORD}" -keyout "${ROOT_CA_KEY}" -subj "${ROOT_CA_SUBJECT}" -out "${ROOT_CA_CERTIFICATE}"
    echo "Putting the certificate commands into certificateCommands.txt"
    echo "Putting the certificate commands into certificateCommands.txt" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
-   echo "openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_ca_extensions -batch -x509 -sha3-512 -newkey rsa:$BITS -days ${RDAYS} -passout file:"${ROOT_CA_KEY_PASSWORD}" -keyout "${ROOT_CA_KEY}" -subj "${ROOT_CA_SUBJECT}" -out "${ROOT_CA_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
+   echo "openssl req -verbose -config "${OPENSSL_CONF}" -extensions v3_ca_extensions -batch -x509 -sha512 -newkey rsa:$BITS -days ${RDAYS} -passout file:"${ROOT_CA_KEY_PASSWORD}" -keyout "${ROOT_CA_KEY}" -subj "${ROOT_CA_SUBJECT}" -out "${ROOT_CA_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
    echo "Done."
 fi;
 }
@@ -824,11 +823,15 @@ apt install argon2 gnupg* -y
 echo "GnuPG installed."
 echo "Done"
 echo "Retrieving OpenXPKI package key and verifying."
-wget https://packages.openxpki.org/v3/debian/Release.key -O - 2>/dev/null | tee Release.key | gpg -o /usr/share/keyrings/openxpki.pgp --dearmor
+# This seems to be broken on a hardened box
+# wget https://packages.openxpki.org/v3/debian/Release.key -O - 2>/dev/null | tee Release.key | gpg2 -o /usr/share/keyrings/openxpki.pgp --dearmor
+#wget -O- https://packages.openxpki.org/v3/debian/Release.key | gpg --dearmor | tee /usr/share/keyrings/openxpki.pgp > /dev/null 2>&1 
 #wget https://packages.openxpki.org/v3/debian/Release.key -O - | apt-key add -
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 8F7B8EC1D616E831
 #
 echo "Adding OpenXPKI to sources."
-echo -e "Types: deb\nURIs: https://packages.openxpki.org/v3/bookworm/\nSuites: bookworm\nComponents: release\nSigned-By: /usr/share/keyrings/openxpki.pgp" > /etc/apt/sources.list.d/openxpki.sources
+#echo -e "Types: deb\nURIs: https://packages.openxpki.org/v3/bookworm/\nSuites: bookworm\nComponents: release\nSigned-By: /usr/share/keyrings/openxpki.pgp" > /etc/apt/sources.list.d/openxpki.sources
+echo -e "Types: deb\nURIs: https://packages.openxpki.org/v3/bookworm/\nSuites: bookworm\nComponents: release\n" > /etc/apt/sources.list.d/openxpki.sources
 apt update -y
 PS3="Do you want to install MySQL, MariaDB or use an External Database?   "
 input_db_external=0
@@ -905,8 +908,8 @@ if [ $input_db_external == "0" ]; then
 ROOT_PW="${input_rootpw_2}"
   while [ "${confirm_db}" != "y" ]
   do
-input_db_name="openxpki_dev"
-input_db_user="openxpki_dev"
+input_db_name="openxpki"
+input_db_user="openxpki"
 #    echo -e "What's the password for the database?\n"
 #    read input_db_pass
 input_db_pass=`openssl rand 50 | base64`
@@ -994,10 +997,10 @@ if [ $input_db_external == "1" ] && [ $input_db_external_auto == "0" ]; then
 		sed -i 's|START WITH 0 INCREMENT BY 1|START WITH 0 INCREMENT BY 0|g' /usr/share/doc/libopenxpki-perl/examples/schema-mariadb.sql
 		# This was a useless check added into the package. Will eventually be removed and this won't be necessary.
 		# https://github.com/openxpki/openxpki/issues/894
-		sed -i 's|unless ($major >= 10 and $minor >= 3);|unless ($major >= 0 and $minor >= 0);|'g 
+		sed -i 's|unless ($major >= 10 and $minor >= 3);|unless ($major >= 0 and $minor >= 0);|'g  /usr/share/perl5/OpenXPKI/Server/Database/Driver/MariaDB2.pm
 	fi
-	input_db_name="openxpki_dev"
-    input_db_user="openxpki_dev"
+	input_db_name="openxpki"
+    input_db_user="openxpki"
 	input_db_pass=`openssl rand 50 | base64`
 	cgi_session_db_user="openxpki_cgiSession_user"
     cgi_session_db_pass=`openssl rand 50 | base64`
@@ -1133,8 +1136,55 @@ mv ${BASE_DIR}/webui/default.conf ${BASE_DIR}/webui/default.conf.bak
 
 #Update openxpki apache conf to account for our chosen directory
 sed -i "s|/etc/openxpki|"${BASE_DIR}"|g" /etc/apache2/sites-available/openxpki.conf
+if [ $input_db_external == "1" ]; then
+echo "
+[global]
+scripturl = cgi-bin/webui.fcgi
 
+realm_mode = select
+locale_directory: /usr/share/locale/
+default_language: en_US
+
+[logger]
+log_level = INFO
+
+[session]
+driver = driver:openxpki
+timeout = +10m
+ip_match = 1
+fingerprint = HTTP_ACCEPT_ENCODING, HTTP_USER_AGENT, HTTP_ACCEPT_LANGUAGE, REMOTE_USER, SSL_CLIENT_CERT
+cookey = "${cgi_session_cookie}"
+
+[session_driver]
+Directory = /tmp
+NameSpace = "${input_db_name}"
+DataSource = dbi:MariaDB:dbname="${input_db_name}";host="${input_db_external_IP}"
+User = "${cgi_session_db_user}"
+Password = "${cgi_session_db_pass}"
+EncryptKey = "${db_session_enc_key}"
+LogIP = 1
+LongReadLen = 100000
+
+[realm]
+
+[auth]
+sign.key="${v_cgi_session_enc_key}"
+
+# those headers are added to all http responses
+[header]
+Strict-Transport-Security = max-age=31536000;
+X-Frame-Options = SAMEORIGIN;
+X-XSS-Protection = 1; mode=block;
+
+# Authentication settings used for e.g. public access scripts
+# where no user login is required, by default Anonymous is used
+[auth]
+stack = _System
+" >> ${BASE_DIR}/webui/default.conf
+
+fi
 #Need to add the tag here to check out version and not overwrite
+if [ $input_db_external == "0" ]; then
 echo "
 [global]
 socket = /var/openxpki/openxpki.socket
@@ -1183,6 +1233,7 @@ X-XSS-Protection = 1; mode=block;
 [auth]
 stack = _System
 " >> ${BASE_DIR}/webui/default.conf
+fi
 
 echo ""
 echo ""
