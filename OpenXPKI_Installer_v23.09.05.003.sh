@@ -671,7 +671,9 @@ else
          echo -n "Signing issuing certificate with own root CA .. " >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
 	 echo -n "openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_issuing_extensions -batch -days ${IDAYS} -in "${ISSUING_CA_REQUEST}" -cert "${ROOT_CA_CERTIFICATE}" -passin file:"${ROOT_CA_KEY_PASSWORD}" -keyfile "${ROOT_CA_KEY}" -out "${ISSUING_CA_CERTIFICATE}"" >> ${BASE_DIR}/ca/"${REALM}"/certificateCommands.txt
          openssl ca -create_serial -config "${OPENSSL_CONF}" -extensions v3_issuing_extensions -batch -days ${IDAYS} -in "${ISSUING_CA_REQUEST}" -cert "${ROOT_CA_CERTIFICATE}" -passin file:"${ROOT_CA_KEY_PASSWORD}" -keyfile "${ROOT_CA_KEY}" -out "${ISSUING_CA_CERTIFICATE}"
-	 echo "done."
+         # Add CRL generation for Intermediate cert right here. Verify the sequence, but also cp the CRL to /var/www/download directory, change perms and grant 755. 
+	 # Be sure to echo the output to cert commands file.
+         echo "done."
       fi
    fi
 fi;
